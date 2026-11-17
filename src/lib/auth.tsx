@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isNetworkError } from "./queue.ts";
+import { callSite, hasSite } from "./site-api";
 import { supabase } from "./supabase";
 
 export type Store = { id: string; name: string; active: boolean; count_interval_days: number };
@@ -120,6 +121,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const email = rawEmail.trim().toLowerCase().slice(0, 254);
       if (!email || !password) return "Informe e-mail e senha.";
       setNotice(null);
+      // Pelo site: vale a trava de 8 senhas erradas, como no login do site. Se o site ainda não tem a
+      // rota (404) ou não está configurado, entra direto pelo Supabase.
+      if (hasSite) {
+        const res = await callSite<{ access_token: string; refresh_token: string }>("/api/app/login", { body: { email, password }, auth: false });
+        if (res.ok) {
+          const { data, error } = await supabase.auth.setSession(res.data);
+          if (error || !data.session) return "Não foi possível entrar. Tente de novo.";
+          userRef.current = data.session.user.id;
+          setSession(data.session);
+          await loadProfile(data.session.user.id);
+          return null;
+        }
+        if (res.status !== 404 && res.status !== 0) return res.error;
+      }
       const { data, error } = await supabase.auth
         .signInWithPassword({ email, password })
         .catch((e: Error) => ({ data: { session: null }, error: { name: "AuthRetryableFetchError", message: e.message, status: 0 } }));

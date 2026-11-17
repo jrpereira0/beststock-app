@@ -15,7 +15,7 @@ export class Offline extends Error {
 }
 
 /** Erro de rede vira Offline (a tela mostra o que está guardado); recusa do banco segue como erro. */
-function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
+export function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
   if (res.error) {
     if (isNetworkError(res.error)) throw new Offline();
     throw new Error(res.error.message);
@@ -23,7 +23,7 @@ function check<T>(res: { data: T; error: { message: string; code?: string } | nu
   return res.data;
 }
 
-async function cached<T>(key: string, load: () => Promise<T>): Promise<{ data: T; fromCache: boolean }> {
+export async function cached<T>(key: string, load: () => Promise<T>): Promise<{ data: T; fromCache: boolean }> {
   try {
     const data = await load();
     await AsyncStorage.setItem(key, JSON.stringify(data)).catch(() => undefined);
@@ -112,18 +112,20 @@ export async function markAnnouncementRead(profileId: string, announcementId: st
 
 // ---------------- Contagem ----------------
 
-/** Abre a contagem de hoje. Se já houver uma em andamento, devolve ela. */
-export async function openTodayCount(profile: Profile): Promise<{ id: string } | { error: string }> {
+/** Abre a contagem do dia escolhido (hoje, se nada for dito). Se já houver uma em andamento, devolve ela. */
+export async function openTodayCount(profile: Profile, date: string = today()): Promise<{ id: string } | { error: string }> {
+  if (!isIsoDate(date)) return { error: "Informe a data da contagem." };
+  if (date > today()) return { error: "A data da contagem não pode estar no futuro." };
   const storeId = profile.store.id;
   const existing = await supabase.from("inventories").select("id").eq("store_id", storeId).eq("status", "draft").maybeSingle();
   if (existing.error && isNetworkError(existing.error)) return { error: "Sem internet. Para abrir uma contagem nova, conecte o celular. Depois dá para contar sem internet." };
   if (existing.data) return { id: existing.data.id as string };
   const { data, error } = await supabase
     .from("inventories")
-    .insert({ store_id: storeId, counted_on: today(), created_by: profile.id })
+    .insert({ store_id: storeId, counted_on: date, created_by: profile.id })
     .select("id")
     .single();
-  if (error?.code === "23505") return { error: "Já existe um inventário com a data de hoje. Veja o histórico no site." };
+  if (error?.code === "23505") return { error: "Já existe um inventário nessa data ou uma contagem em andamento." };
   if (error && isNetworkError(error)) return { error: "Sem internet. Para abrir uma contagem nova, conecte o celular. Depois dá para contar sem internet." };
   if (error || !data) return { error: "Não foi possível iniciar o inventário." };
   return { id: data.id as string };

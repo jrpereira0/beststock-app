@@ -13,7 +13,7 @@ export default function AppLayout() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Início" }} />
       <Stack.Screen name="contagem/[id]" options={{ title: "Contagem" }} />
       <Stack.Screen name="lancar" options={{ title: "Lançar" }} />
     </Stack>

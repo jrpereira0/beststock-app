@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ClosedCount } from "@/components/closed-count";
 import { Button, Notice, T, styles as ui } from "@/components/ui";
 import { useProfile } from "@/lib/auth";
 import {
@@ -39,6 +40,7 @@ export default function CountScreen() {
   const [data, setData] = useState<CountData | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -61,7 +63,7 @@ export default function CountScreen() {
     return () => {
       alive = false;
     };
-  }, [id, profile]);
+  }, [id, profile, version]);
 
   if (loadError) {
     return (
@@ -80,13 +82,13 @@ export default function CountScreen() {
   }
   if (data.inventory.status !== "draft") {
     return (
-      <View style={{ flex: 1, padding: 16, gap: 16 }}>
-        <Stack.Screen options={{ title: `Contagem de ${formatDay(data.inventory.counted_on)}` }} />
-        <Notice tone="ok" title="Esta contagem já foi fechada">
-          O resultado e a lista de compras ficam no site.
-        </Notice>
-        <Button label="Voltar ao início" variant="secondary" onPress={() => router.back()} />
-      </View>
+      <ClosedCount
+        id={data.inventory.id}
+        onReopened={() => {
+          setData(null);
+          setVersion((v) => v + 1);
+        }}
+      />
     );
   }
   return <CountList data={data} fromCache={fromCache} />;
