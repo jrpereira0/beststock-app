@@ -1,20 +1,23 @@
 import { Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold, useFonts } from "@expo-google-fonts/outfit";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View } from "react-native";
+import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { LoadingScreen } from "@/components/loading-mark";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { colors } from "@/lib/theme";
 
+/** Na abertura, o símbolo animado aparece pelo menos o tempo de os blocos trocarem de lugar, como no site. */
+const OPENING_MS = 2300;
+
 function Gate() {
   const { ready, session, profile } = useAuth();
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
-        <ActivityIndicator color={colors.ink} />
-      </View>
-    );
-  }
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setOpened(true), OPENING_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!ready || !opened) return <LoadingScreen dark />;
   const signedIn = Boolean(session && profile);
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
@@ -30,7 +33,7 @@ function Gate() {
 
 export default function RootLayout() {
   const [loaded] = useFonts({ Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold });
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  if (!loaded) return <LoadingScreen dark />;
   return (
     <SafeAreaProvider>
       <AuthProvider>

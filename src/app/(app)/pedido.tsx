@@ -1,7 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { TextInput, View } from "react-native";
-import { Button, Card, Notice, T, styles as ui } from "@/components/ui";
+import { Button, Card, Notice, QuantityStepper, T, styles as ui } from "@/components/ui";
 import { Choice, DayPicker, Footer, Page } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";
 import { groupProducts } from "@/lib/count-rules";
@@ -10,7 +10,7 @@ import { addDays, daysFrom, formatDate, formatQty, today } from "@/lib/dates";
 import { parsePacks } from "@/lib/purchases";
 import { brl } from "@/lib/site/billing";
 import { MAX_ORDER_AGE_DAYS } from "@/lib/site/order-dates";
-import { colors, font } from "@/lib/theme";
+import { colors } from "@/lib/theme";
 import { useLoad } from "@/lib/use-load";
 
 type Storage = "gelado" | "seco";
@@ -133,23 +133,15 @@ export default function PedidoScreen() {
               {list.map((p) => {
                 const upp = Number(p.units_per_purchase);
                 return (
-                  <Card key={p.id} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 }}>
-                    <View style={{ flex: 1 }}>
+                  <Card key={p.id} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingVertical: 12, flexWrap: "wrap" }}>
+                    <View style={{ flexShrink: 1, minWidth: 120 }}>
                       <T weight="semibold">{p.name}</T>
                       <T size={14} color={colors.muted}>
                         {p.storage === "seco" ? "Seco" : "Gelado"} · em {p.purchase_unit}
                         {upp !== 1 || p.purchase_unit !== p.count_unit ? ` (1 ${p.purchase_unit} = ${formatQty(upp)} ${p.count_unit})` : ""}
                       </T>
                     </View>
-                    <TextInput
-                      value={values[p.id] ?? ""}
-                      onChangeText={(t) => setValues((v) => ({ ...v, [p.id]: t }))}
-                      keyboardType="decimal-pad"
-                      placeholder="—"
-                      placeholderTextColor={colors.muted}
-                      accessibilityLabel={`Quantidade de ${p.name}`}
-                      style={[ui.input, { width: 100, textAlign: "center", fontFamily: font.bold, fontSize: 20 }]}
-                    />
+                    <QuantityStepper label={p.name} value={values[p.id] ?? ""} onChange={(t) => setValues((v) => ({ ...v, [p.id]: t }))} />
                   </Card>
                 );
               })}

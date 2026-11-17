@@ -26,14 +26,18 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 110,
+          "backgroundColor": "#141414",
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "scheme": "beststock",
-    "backgroundColor": "#f7f5f0",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#141414"
-    }
+    "backgroundColor": "#141414"
   }
 }

@@ -1,15 +1,16 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert as Dialog, KeyboardAvoidingView, Platform, Pressable, ScrollView, SectionList, TextInput, View } from "react-native";
+import { Alert as Dialog, KeyboardAvoidingView, Platform, Pressable, ScrollView, SectionList, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Notice, T, styles as ui } from "@/components/ui";
+import { LoadingMark } from "@/components/loading-mark";
+import { Button, Notice, QuantityStepper, T, styles as ui } from "@/components/ui";
 import { useProfile } from "@/lib/auth";
 import { categoriesOf, groupProducts } from "@/lib/count-rules";
 import { loadMovementForm, Offline, saveMovements, type MovementForm } from "@/lib/data";
 import { addDays, daysFrom, formatDate, formatDay, formatQty, today, weekday } from "@/lib/dates";
 import { isShort, unitHint, validateMovements, type Kind, type MovementProduct } from "@/lib/movements";
 import { takeInvoiceDraft, type InvoiceDraft } from "@/lib/invoice-draft";
-import { colors, font } from "@/lib/theme";
+import { colors } from "@/lib/theme";
 
 export default function LancarScreen() {
   const params = useLocalSearchParams<{ tipo?: string; nota?: string }>();
@@ -44,7 +45,7 @@ export default function LancarScreen() {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <Stack.Screen options={{ title }} />
-        <ActivityIndicator color={colors.ink} />
+        <LoadingMark />
       </View>
     );
   }
@@ -248,8 +249,8 @@ const Row = memo(function Row({
   const short = isShort(kind, p, value, outstanding);
   return (
     <View style={[ui.card, { paddingVertical: 12, gap: 10 }]}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <View style={{ flexShrink: 1, minWidth: 120 }}>
           <T weight="semibold">{p.name}</T>
           <T size={14} color={colors.muted}>{unitHint(kind, p)}</T>
           {kind === "entrada" && (outstanding ?? 0) > 0 && (
@@ -258,16 +259,7 @@ const Row = memo(function Row({
             </T>
           )}
         </View>
-        <TextInput
-          value={value}
-          onChangeText={(t) => onChange(p.id, t)}
-          keyboardType="decimal-pad"
-          placeholder="—"
-          placeholderTextColor={colors.muted}
-          accessibilityLabel={`Quantidade de ${p.name}`}
-          selectTextOnFocus
-          style={[ui.input, { width: 110, textAlign: "center", fontFamily: font.bold, fontSize: 20 }]}
-        />
+        <QuantityStepper label={p.name} value={value} onChange={(t) => onChange(p.id, t)} />
       </View>
       {short && (
         <View style={{ borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10, gap: 8 }} accessibilityRole="radiogroup">

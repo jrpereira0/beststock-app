@@ -1,8 +1,8 @@
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Alert as Dialog, Linking, Pressable, TextInput, View } from "react-native";
-import { Button, Card, Notice, T, styles as ui } from "@/components/ui";
+import { Alert as Dialog, Linking, Pressable, View } from "react-native";
+import { Button, Card, Notice, QuantityStepper, T } from "@/components/ui";
 import { Badge, Page, Stat } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";
 import { cancelPurchaseOrder, loadPurchases, registerPurchaseOrder } from "@/lib/data-compras";
@@ -10,7 +10,7 @@ import { daysBetween, formatDate, formatQty, today } from "@/lib/dates";
 import { orderText, parsePacks, purchaseGroups, roundUp, type PurchaseGroup, type PurchaseRow } from "@/lib/purchases";
 import { brl } from "@/lib/site/billing";
 import { coverageText } from "@/lib/site/dates";
-import { colors, font } from "@/lib/theme";
+import { colors } from "@/lib/theme";
 import { useLoad } from "@/lib/use-load";
 
 type Filter = "todos" | "risco" | "repor";
@@ -286,22 +286,15 @@ export default function ComprasTab() {
                               {r.byMinimum && <T size={12} weight="semibold" color={colors.muted}>estoque mínimo</T>}
                             </View>
                           </View>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                            <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                            <View style={{ flexShrink: 1 }}>
                               <T weight="bold">Comprar</T>
                               <T size={13} color={colors.muted}>
                                 {r.perPack !== 1 ? `${r.purchaseUnit} de ${formatQty(r.perPack)} ${r.countUnit}` : r.purchaseUnit}
                                 {lineValue > 0 ? ` · ${brl.format(lineValue)}` : ""}
                               </T>
                             </View>
-                            <TextInput
-                              value={packs[r.id] ?? ""}
-                              onChangeText={(t) => setPacks((p) => ({ ...p, [r.id]: t }))}
-                              keyboardType="decimal-pad"
-                              accessibilityLabel={`Comprar ${r.name}`}
-                              selectTextOnFocus
-                              style={[ui.input, { width: 100, textAlign: "center", fontFamily: font.bold, fontSize: 20 }]}
-                            />
+                            <QuantityStepper label={r.name} value={packs[r.id] ?? ""} onChange={(t) => setPacks((p) => ({ ...p, [r.id]: t }))} />
                           </View>
                         </View>
                       );

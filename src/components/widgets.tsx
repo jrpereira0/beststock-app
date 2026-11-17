@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoadingMark } from "@/components/loading-mark";
 import { Card, Notice, T } from "@/components/ui";
 import { colors } from "@/lib/theme";
 
@@ -48,7 +49,13 @@ export function Page({
           </Notice>
         )}
         {error && <Notice tone="danger">{error}</Notice>}
-        {loading && !error ? <ActivityIndicator color={colors.ink} style={{ marginTop: 32 }} /> : children}
+        {loading && !error ? (
+          <View style={{ alignItems: "center", marginTop: 48 }}>
+            <LoadingMark />
+          </View>
+        ) : (
+          children
+        )}
       </ScrollView>
       {footer}
     </SafeAreaView>

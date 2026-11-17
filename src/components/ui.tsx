@@ -168,3 +168,46 @@ export const styles = StyleSheet.create({
   },
   section: { textTransform: "uppercase", letterSpacing: 1, marginTop: 8, marginBottom: 8 },
 });
+
+/** Campo de quantidade com botões de menos e mais, como o QuantityInput do site. Aceita vírgula. */
+export function QuantityStepper({
+  label,
+  value,
+  onChange,
+  invalid = false,
+  width = 76,
+}: {
+  /** Nome do produto, para leitores de tela. */
+  label: string;
+  value: string;
+  onChange: (text: string) => void;
+  invalid?: boolean;
+  width?: number;
+}) {
+  const bump = (delta: number) => {
+    const n = Number(value.trim().replace(",", "."));
+    const base = Number.isFinite(n) ? n : 0;
+    onChange(String(Math.max(0, Math.round((base + delta) * 1000) / 1000)).replace(".", ","));
+  };
+  const btn = { width: 48, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line } as const;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Diminuir ${label}`} hitSlop={4} onPress={() => bump(-1)} style={({ pressed }) => [btn, { backgroundColor: pressed ? colors.brandSoft : colors.bg }]}>
+        <T weight="bold" size={24}>−</T>
+      </Pressable>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        keyboardType="decimal-pad"
+        placeholder="–"
+        placeholderTextColor={colors.muted}
+        accessibilityLabel={`Quantidade de ${label}`}
+        selectTextOnFocus
+        style={[styles.input, { width, paddingHorizontal: 4, textAlign: "center", fontFamily: font.bold, fontSize: 19 }, invalid ? { borderColor: colors.danger } : null]}
+      />
+      <Pressable accessibilityRole="button" accessibilityLabel={`Aumentar ${label}`} hitSlop={4} onPress={() => bump(1)} style={({ pressed }) => [btn, { backgroundColor: pressed ? colors.brandSoft : colors.bg }]}>
+        <T weight="bold" size={24}>+</T>
+      </Pressable>
+    </View>
+  );
+}

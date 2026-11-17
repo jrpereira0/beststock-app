@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert as Dialog,
   KeyboardAvoidingView,
   Modal,
@@ -15,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ClosedCount } from "@/components/closed-count";
+import { LoadingMark } from "@/components/loading-mark";
 import { Button, Notice, T, styles as ui } from "@/components/ui";
 import { useProfile } from "@/lib/auth";
 import {
@@ -76,7 +76,7 @@ export default function CountScreen() {
   if (!data) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color={colors.ink} />
+        <LoadingMark />
       </View>
     );
   }
