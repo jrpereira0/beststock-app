@@ -1,4 +1,5 @@
 import { router, Stack } from "expo-router";
+import { ExportButtons } from "@/components/export-buttons";
 import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
 import { View } from "react-native";
@@ -49,6 +50,7 @@ export function ClosedCount({ id, onReopened }: { id: string; onReopened: () => 
             </View>
             {data.whoText !== "" && <T size={14} color={colors.muted}>{data.whoText}</T>}
           </View>
+          <ExportButtons report="contagem" id={data.inventory.id} />
           {data.isLatest && profile.access === "gerente" && (
             <Button label="Reabrir para corrigir" variant="secondary" busy={busy} onPress={reopen} />
           )}

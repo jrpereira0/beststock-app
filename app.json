@@ -35,7 +35,8 @@
           "backgroundColor": "#141414",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "scheme": "beststock",
     "backgroundColor": "#141414"

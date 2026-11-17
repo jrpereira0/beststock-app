@@ -1,4 +1,5 @@
 import { router, Stack } from "expo-router";
+import { ExportButtons } from "@/components/export-buttons";
 import { Guide } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { useCallback, useMemo, useState } from "react";
@@ -114,6 +115,7 @@ export default function ConsumoScreen() {
       )}
       {plan && plan.inventoryCount >= 2 && view && (
         <>
+          <ExportButtons report="consumo" />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             <Stat label="Risco de faltar" value={count("falta")} tone={count("falta") > 0 ? "danger" : "neutral"} hint={count("falta") > 0 ? "Podem acabar antes de a compra chegar" : "Nenhum produto em risco"} />
             <Stat label="Em excesso" value={count("excesso")} hint={count("excesso") > 0 ? "Têm muito mais do que precisam" : "Nenhum produto em excesso"} />

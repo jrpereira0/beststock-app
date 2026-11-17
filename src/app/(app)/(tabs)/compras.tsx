@@ -1,4 +1,5 @@
 import * as Clipboard from "expo-clipboard";
+import { ExportButtons } from "@/components/export-buttons";
 import { Guide } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
@@ -175,6 +176,7 @@ export default function ComprasTab() {
             </Card>
           ) : (
             <>
+              <ExportButtons report="compras" />
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 <Stat label="Para comprar" value={plural(itemCount, "produto", "produtos")} />
                 <Stat
