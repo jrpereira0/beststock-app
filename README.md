@@ -1,6 +1,6 @@
 # BestStock — aplicativo da loja
 
-Aplicativo para iPhone e Android (Expo / React Native) usado dentro da loja: contar o estoque, mesmo sem internet, e lançar entradas e perdas. Usa o mesmo banco, os mesmos logins e as mesmas regras do site (`beststock`). Compras, consumo, produtos, fornecedores, financeiro e o painel da rede ficam no site.
+Aplicativo para iPhone e Android (Expo / React Native) do BestStock: o site da loja no celular, com a contagem funcionando mesmo sem internet. Usa o mesmo banco, os mesmos logins e as mesmas regras do site (`beststock`). O painel do administrador da rede ainda fica só no site.
 
 ## O que tem
 
