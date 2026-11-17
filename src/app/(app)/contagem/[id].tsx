@@ -26,7 +26,7 @@ import {
   stockoutRange,
   type CountProduct,
 } from "@/lib/count-rules";
-import { closeInventory, discardInventory, fillMissingWithZero, loadCount, Offline, saveCount, type CountData } from "@/lib/data";
+import { closeInventory, discardInventory, fillMissingWithZero, loadCount, Offline, patchCountCache, saveCount, type CountData } from "@/lib/data";
 import { daysFrom, formatDate, formatDay, formatQty, weekday } from "@/lib/dates";
 import { onReconnect, useOnline } from "@/lib/network";
 import { flushQueue, readQueue, removeIfSame, writeQueue, type Pending, type PendingItem } from "@/lib/queue";
@@ -175,6 +175,8 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
         const finished = await flushQueue(snapshot, sendOne, async (pid, item, res) => {
           await updateQueue((q) => removeIfSame(q, pid, item));
           if (res.ok) {
+            // Um de cada vez: a cópia é lida e regravada, e envios em paralelo perderiam números.
+            await patchCountCache(inventoryId, pid, item.value, item.stockout);
             setSaved((s) => ({ ...s, [pid]: item.value }));
             setStatus((s) => ({ ...s, [pid]: queueRef.current[pid] ? "queued" : "saved" }));
           } else {
@@ -190,7 +192,7 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
     } finally {
       flushing.current = false;
     }
-  }, [sendOne, updateQueue]);
+  }, [inventoryId, sendOne, updateQueue]);
 
   // Ao abrir, recupera o que ficou guardado (o app pode ter sido fechado) e tenta enviar.
   // Depois, tenta de novo quando a internet volta e a cada 20 segundos enquanto houver algo guardado.
@@ -270,6 +272,7 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
       return;
     }
     const zeros = Object.fromEntries(res.ids.map((pid) => [pid, "0"]));
+    for (const pid of res.ids) await patchCountCache(inventoryId, pid, "0", null);
     setSaved((s) => ({ ...s, ...zeros }));
     setValues((v) => ({ ...v, ...zeros }));
   }

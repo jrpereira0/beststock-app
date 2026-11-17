@@ -444,3 +444,23 @@ export async function saveMovements(
     return offline;
   }
 }
+
+/**
+ * Atualiza a cópia da contagem guardada no aparelho depois que um número chega ao banco: quem reabrir a
+ * contagem sem internet vê o que já foi salvo, e não o que havia quando a tela foi aberta.
+ */
+export async function patchCountCache(inventoryId: string, productId: string, value: string, stockout: string | null) {
+  const key = `beststock:dados-contagem:${inventoryId}`;
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return;
+    const data = JSON.parse(raw) as CountData;
+    if (value.trim()) data.initial[productId] = value;
+    else delete data.initial[productId];
+    if (stockout) data.stockouts[productId] = stockout;
+    else delete data.stockouts[productId];
+    await AsyncStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Sem armazenamento: a contagem segue normal, só a cópia fica velha.
+  }
+}
