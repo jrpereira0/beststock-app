@@ -3,7 +3,10 @@ import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { Button, Card, Field, Notice, SectionTitle, T, styles as ui } from "@/components/ui";
+import { Guide } from "@/components/guide";
+import { SetupChecklist } from "@/components/setup-checklist";
 import { Badge, Choice, Page } from "@/components/widgets";
+import { GUIDES } from "@/lib/guides";
 import { useAuth, useProfile } from "@/lib/auth";
 import { intervalDays } from "@/lib/cadastros";
 import { saveSettings } from "@/lib/data-cadastros";
@@ -98,6 +101,12 @@ export default function ConfiguracoesScreen() {
       <Stack.Screen options={{ title: "Configurações" }} />
       {data && (
         <>
+          <SectionTitle>Como o sistema calcula a compra</SectionTitle>
+          <Guide guide={GUIDES.calculo} />
+
+          <SectionTitle>Para os números saírem certos</SectionTitle>
+          <SetupChecklist facts={data.facts} />
+
           <SectionTitle>Desta loja</SectionTitle>
           <Card style={{ gap: 12 }}>
             <T weight="extrabold" size={18}>Contagem do estoque</T>

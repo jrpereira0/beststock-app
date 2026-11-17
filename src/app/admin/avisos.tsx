@@ -1,4 +1,6 @@
 import { Stack } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -61,6 +63,7 @@ export default function AvisosScreen() {
       <Stack.Screen options={{ title: "Avisos" }} />
       {data && (
         <>
+          <Guide guide={GUIDES.avisos} />
           <Card style={{ gap: 12 }}>
             <T weight="extrabold" size={18}>Novo aviso</T>
             <Choice label="Para quem" value={storeId} options={[{ value: "", label: "Todas as unidades" }, ...stores.map((s) => ({ value: s.id, label: s.name }))]} onChange={setStoreId} />

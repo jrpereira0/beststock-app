@@ -1,7 +1,10 @@
 // Financeiro e configurações da loja (iguais a financeiro/page.tsx e configuracoes/page.tsx do site).
 import type { Profile } from "./auth";
 import { cached, check } from "./data";
+import { computePlan } from "./data-compras";
+import { today } from "./dates";
 import { callSite } from "./site-api";
+import { setupFacts } from "./site/setup";
 import type { Payment, PaymentMethod, Plan } from "./site/types";
 import { supabase } from "./supabase";
 
@@ -40,11 +43,22 @@ export type StoreLogin = { id: string; name: string; email: string; access: "ger
 export async function loadSettings(profile: Profile) {
   const storeId = profile.store.id;
   return cached(`beststock:configuracoes:${storeId}`, async () => {
-    const [logins, store] = await Promise.all([
+    const [logins, store, plan, suppliers, closed] = await Promise.all([
       supabase.from("profiles").select("id, name, email, access").eq("store_id", storeId).order("created_at"),
       supabase.from("stores").select("city, count_interval_days").eq("id", storeId).single(),
+      computePlan(storeId, profile.store.count_interval_days),
+      supabase.from("suppliers").select("id", { count: "exact", head: true }).eq("store_id", storeId),
+      supabase.from("inventories").select("id", { count: "exact", head: true }).eq("store_id", storeId).eq("status", "closed"),
     ]);
+    // Situação do cadastro e da rotina, para a lista "Para os números saírem certos" (igual ao site).
+    const facts = setupFacts(plan, {
+      countIntervalDays: Number((check(store) as { count_interval_days: number }).count_interval_days),
+      suppliers: suppliers.count ?? 0,
+      closedCounts: closed.count ?? 0,
+      today: today(),
+    });
     return {
+      facts,
       logins: (check(logins) ?? []) as StoreLogin[],
       city: String((check(store) as { city: string }).city ?? ""),
       interval: Number((check(store) as { count_interval_days: number }).count_interval_days),

@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { BillingGuide } from "@/components/guide";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { PaymentList } from "@/components/admin-payments";
@@ -69,6 +70,13 @@ export default function CobrancasScreen() {
       {data && (
         <>
           <Button label="Cobrança avulsa" variant="secondary" onPress={() => setCreating(true)} />
+          <SectionTitle>Como funciona</SectionTitle>
+          <BillingGuide
+            plans={data.plans.filter((p) => p.active).length}
+            units={data.stores.length}
+            billed={upcoming.length}
+            open={(data.payments ?? []).filter((p) => p.status === "pendente").length}
+          />
           <SectionTitle>{month ? `Resumo de ${monthLabel(`${month}-01`)}` : "Resumo"}</SectionTitle>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             <Stat

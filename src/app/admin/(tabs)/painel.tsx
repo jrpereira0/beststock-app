@@ -1,4 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { router } from "expo-router";
 import { useCallback } from "react";
 import { Pressable, View } from "react-native";
@@ -70,9 +72,7 @@ export default function PainelScreen() {
           onPress={() => router.push("/admin/cobrancas?s=atraso")}
         />
       </View>
-      <T size={14} color={colors.muted}>
-        Ativas usam o sistema; bloqueadas não entram. Sem cobrança, a unidade entra, mas o plano não gera cobrança. A receber: cobranças ainda não pagas, vencidas ou não.
-      </T>
+      <Guide guide={GUIDES.painel} />
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
         <SectionTitle>Precisa da sua atenção</SectionTitle>

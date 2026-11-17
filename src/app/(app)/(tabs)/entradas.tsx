@@ -1,4 +1,6 @@
 import { router } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
@@ -94,6 +96,8 @@ export default function EntradasTab() {
               hint={data?.lastCount ? `Última contagem em ${formatDate(data.lastCount)}` : "Nenhuma contagem fechada ainda"}
             />
           </View>
+
+          <Guide guide={GUIDES.entradas} />
 
           {entries.length > 0 && losses > 0 && (
             <View style={{ flexDirection: "row", gap: 8 }}>

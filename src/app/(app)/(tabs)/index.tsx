@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Guide, HowItWorks } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -190,6 +192,8 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {profile.access === "gerente" && home && (!home.lastClosedOn || (plan && plan.inventoryCount < 2)) && <HowItWorks />}
+
         {plan && profile.access === "gerente" && <Summary plan={plan} />}
 
         {home && home.alerts.length > 0 && (
@@ -238,6 +242,7 @@ function Summary({ plan }: { plan: StockPlan }) {
         <Stat label="Em excesso" value={excess} onPress={() => router.push("/consumo")} />
         <Stat label="Valor em estoque" value={stockValue > 0 ? brl.format(stockValue) : "—"} onPress={() => router.push("/consumo")} />
       </View>
+      <Guide guide={GUIDES.inicio} />
     </View>
   );
 }

@@ -1,4 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Button, Card, T, styles as ui } from "@/components/ui";
@@ -72,6 +74,7 @@ export default function ProdutosScreen() {
         </Card>
       ) : (
         <>
+          <Guide guide={GUIDES.produtos} />
           <TextInput
             value={search}
             onChangeText={setSearch}

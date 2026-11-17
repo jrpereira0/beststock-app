@@ -1,4 +1,6 @@
 import { Stack } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useCallback } from "react";
 import { View } from "react-native";
 import { Card, Notice, SectionTitle, T } from "@/components/ui";
@@ -50,6 +52,8 @@ export default function FinanceiroScreen() {
             <Stat label="Próximo vencimento" value={next ? formatDate(next.due_date) : "—"} hint={next ? brl.format(Number(next.amount)) : undefined} />
             <Stat label="Plano" value={data.plan ? data.plan.name : "—"} hint={data.plan ? `${planPrice(data.plan)} · vence no dia ${data.store.due_day}` : "Sem cobrança"} />
           </View>
+
+          <Guide guide={GUIDES.financeiro} />
 
           <SectionTitle>Cobranças</SectionTitle>
           {payments.length === 0 ? (

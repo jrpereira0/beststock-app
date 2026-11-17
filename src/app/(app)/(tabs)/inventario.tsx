@@ -1,4 +1,6 @@
 import { router } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
 import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -75,6 +77,8 @@ export default function InventarioTab() {
           tone={draft && total > 0 && done >= total ? "ok" : "neutral"}
         />
       </View>
+
+      <Guide guide={GUIDES.inventario} />
 
       {draft ? (
         <View style={{ backgroundColor: colors.ink, borderRadius: 24, padding: 20, gap: 8 }}>

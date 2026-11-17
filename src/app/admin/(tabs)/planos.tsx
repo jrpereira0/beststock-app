@@ -1,4 +1,6 @@
 import { router } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Button, Card, T } from "@/components/ui";
 import { Badge, ListLink, Page } from "@/components/widgets";
 import { loadPlans } from "@/lib/data-admin";
@@ -33,9 +35,7 @@ export default function PlanosScreen() {
         </Card>
       ) : (
         <>
-          <T size={14} color={colors.muted}>
-            O sistema cria cada cobrança sozinho, na data certa, pelo plano de cada unidade. Plano desativado deixa de aparecer para escolha.
-          </T>
+          <Guide guide={GUIDES.planos} />
           {plans.map((p) => (
             <ListLink
               key={p.id}

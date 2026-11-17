@@ -1,4 +1,6 @@
 import { router, Stack } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useCallback } from "react";
 import { Button, Card, T } from "@/components/ui";
 import { ListLink, Page } from "@/components/widgets";
@@ -36,9 +38,7 @@ export default function FornecedoresScreen() {
         </Card>
       ) : (
         <>
-          <T size={14} color={colors.muted}>
-            Gelados e secos podem ter prazos diferentes. Na lista de compras, cada produto usa o prazo do tipo dele, e cada fornecedor tem a sua lista.
-          </T>
+          <Guide guide={GUIDES.fornecedores} />
           {suppliers.map((s) => (
             <ListLink key={s.id} title={s.name} subtitle={deliveryText(s)} onPress={() => router.push(`/fornecedores/${s.id}`)} />
           ))}

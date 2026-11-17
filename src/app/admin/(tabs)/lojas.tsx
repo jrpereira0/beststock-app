@@ -1,4 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Button, Card, T } from "@/components/ui";
@@ -71,6 +73,7 @@ export default function LojasScreen() {
         </Card>
       ) : (
         <>
+          <Guide guide={GUIDES.lojas} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {FILTERS.map((x) => (
               <Pressable

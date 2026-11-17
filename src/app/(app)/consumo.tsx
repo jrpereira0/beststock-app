@@ -1,4 +1,6 @@
 import { router, Stack } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Button, Card, T, styles as ui } from "@/components/ui";
@@ -122,9 +124,7 @@ export default function ConsumoScreen() {
               hint={view.hasCosts ? "Valor consumido, em média" : "Cadastre o custo dos produtos para ver"}
             />
           </View>
-          <T size={14} color={colors.muted}>
-            Classe A são os produtos que mais pesam no consumo da loja, B os intermediários e C os de pouco giro. Risco de faltar: pode acabar antes de a compra chegar. Em excesso: tem muito mais do que precisa.
-          </T>
+          <Guide guide={GUIDES.consumo} />
 
           {classes.length > 0 && totalWeight > 0 && (
             <Card style={{ gap: 10 }}>

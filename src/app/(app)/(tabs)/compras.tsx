@@ -1,4 +1,6 @@
 import * as Clipboard from "expo-clipboard";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -188,9 +190,7 @@ export default function ComprasTab() {
                   hint={daysBetween(plan.asOf, now) <= 0 ? "Feita hoje" : `Há ${plural(daysBetween(plan.asOf, now), "dia", "dias")}`}
                 />
               </View>
-              <T size={14} color={colors.muted}>
-                Tem hoje: estimativa pela última contagem, entradas e perdas. Precisa: o estoque para chegar até a próxima compra ser entregue, com margem. Comprar: o que falta depois do que já está a caminho; mude o número se quiser pedir diferente.
-              </T>
+              <Guide guide={GUIDES.compras} />
               {riskCount > 0 && riskCount < rows.length && (
                 <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
                   {(

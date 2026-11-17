@@ -1,4 +1,6 @@
 import { router, Stack } from "expo-router";
+import { Guide } from "@/components/guide";
+import { GUIDES } from "@/lib/guides";
 import { useMemo, useState } from "react";
 import { TextInput, View } from "react-native";
 import { Button, Card, T, styles as ui } from "@/components/ui";
@@ -44,9 +46,7 @@ export default function CatalogoScreen() {
         </Card>
       ) : (
         <>
-          <T size={14} color={colors.muted}>
-            A loja nova recebe estes produtos ligados ao fornecedor da rede e com o custo da rede. Mudar o custo aqui muda em todas as lojas, menos nas que mudaram o custo do produto por conta própria.
-          </T>
+          <Guide guide={GUIDES.catalogo} />
           <TextInput value={search} onChangeText={setSearch} placeholder="Buscar produto" placeholderTextColor={colors.muted} style={ui.input} accessibilityLabel="Buscar produto" />
           {groups.map(([category, list]) => (
             <View key={category} style={{ gap: 8 }}>
