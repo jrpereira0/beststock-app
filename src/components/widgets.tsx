@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Bell } from "@/components/bell";
+import { AdminBell, Bell } from "@/components/bell";
 import { PageSkeleton } from "@/components/skeleton";
 import { Card, Notice, T } from "@/components/ui";
 import { colors } from "@/lib/theme";
@@ -29,7 +29,7 @@ export function Page({
   error?: string | null;
   loading?: boolean;
   /** Tela de aba: sem cabeçalho de navegação, então respeita a área do relógio. */
-  tab?: boolean;
+  tab?: boolean | "admin";
   footer?: ReactNode;
   /** Formato do esqueleto enquanto carrega: lista, contagem ou painel com números. */
   skeleton?: "list" | "count" | "dashboard";
@@ -55,7 +55,7 @@ export function Page({
               <T weight="extrabold" size={26}>{title}</T>
               {subtitle && <T color={colors.muted}>{subtitle}</T>}
             </View>
-            {tab && <Bell />}
+            {tab === "admin" ? <AdminBell /> : tab ? <Bell /> : null}
           </View>
         )}
         {fromCache && (

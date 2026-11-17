@@ -11,18 +11,24 @@ import { colors } from "@/lib/theme";
 const OPENING_MS = 2300;
 
 function Gate() {
-  const { ready, session, profile } = useAuth();
+  const { ready, session, profile, admin } = useAuth();
   const [opened, setOpened] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setOpened(true), OPENING_MS);
     return () => clearTimeout(timer);
   }, []);
   if (!ready || !opened) return <LoadingScreen dark />;
-  const signedIn = Boolean(session && profile);
+  // Loja e administrador da rede têm telas diferentes, como no site.
+  const store = Boolean(session && profile);
+  const network = Boolean(session && admin);
+  const signedIn = store || network;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={signedIn}>
+      <Stack.Protected guard={store}>
         <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={network}>
+        <Stack.Screen name="admin" />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" />

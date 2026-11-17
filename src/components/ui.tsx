@@ -123,7 +123,7 @@ export function Field({ label, hint, error, ...input }: TextInputProps & { label
         placeholderTextColor={colors.muted}
         {...input}
         accessibilityLabel={label}
-        style={[styles.input, error ? { borderColor: colors.danger } : null]}
+        style={[styles.input, input.style, error ? { borderColor: colors.danger } : null]}
       />
       {hint && <T size={14} color={colors.muted}>{hint}</T>}
       {error && <T size={14} weight="semibold" color={colors.danger}>{error}</T>}

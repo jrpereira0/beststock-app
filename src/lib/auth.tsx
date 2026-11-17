@@ -17,6 +17,9 @@ export type Profile = {
   store: Store;
 };
 
+/** Administrador da rede: não tem loja; usa o painel da rede no app. */
+export type AdminProfile = { id: string; role: "admin"; name: string; email: string };
+
 /** As mesmas mensagens do site (src/app/login/page.tsx). */
 export const LOGIN_MESSAGES = {
   perfil: "Este usuário ainda não tem acesso liberado. Fale com o administrador.",
@@ -26,7 +29,7 @@ export const LOGIN_MESSAGES = {
 
 const profileKey = "beststock:perfil";
 
-type ProfileResult = { profile: Profile } | { blocked: keyof typeof LOGIN_MESSAGES } | { offline: true };
+type ProfileResult = { profile: Profile } | { admin: AdminProfile } | { blocked: keyof typeof LOGIN_MESSAGES } | { offline: true };
 
 /** Lê o perfil e a loja do banco, com as mesmas barreiras do site (src/lib/auth.ts). */
 async function fetchProfile(userId: string): Promise<ProfileResult> {
@@ -38,7 +41,7 @@ async function fetchProfile(userId: string): Promise<ProfileResult> {
   if (error) return isNetworkError(error) ? { offline: true } : { blocked: "perfil" };
   if (!data) return { blocked: "perfil" };
   const { stores, ...rest } = data as unknown as Omit<Profile, "store"> & { stores: Store | Store[] | null };
-  if (rest.role === "admin") return { blocked: "admin" };
+  if (rest.role === "admin") return { admin: { id: rest.id, role: "admin", name: rest.name, email: rest.email } };
   const store = (Array.isArray(stores) ? stores[0] : stores) ?? null;
   // Loja desativada: a regra do banco não devolve a linha.
   if (!store || !store.active || !rest.store_id) return { blocked: "inativa" };
@@ -49,6 +52,8 @@ type AuthState = {
   ready: boolean;
   session: Session | null;
   profile: Profile | null;
+  /** Preenchido quando quem entrou é o administrador da rede. */
+  admin: AdminProfile | null;
   /** Mensagem para a tela de login (loja bloqueada, sem perfil). */
   notice: string | null;
   signIn(email: string, password: string): Promise<string | null>;
@@ -62,12 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [admin, setAdmin] = useState<AdminProfile | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const userRef = useRef<string | null>(null);
 
   const block = useCallback(async (reason: keyof typeof LOGIN_MESSAGES) => {
     setNotice(LOGIN_MESSAGES[reason]);
     setProfile(null);
+    setAdmin(null);
     await AsyncStorage.removeItem(profileKey);
     await supabase.auth.signOut({ scope: "local" });
   }, []);
@@ -79,14 +86,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if ("profile" in res) {
         // Só troca o objeto se algo mudou: as telas recarregam quando o perfil muda.
         setProfile((old) => (old && JSON.stringify(old) === JSON.stringify(res.profile) ? old : res.profile));
+        setAdmin(null);
         await AsyncStorage.setItem(profileKey, JSON.stringify(res.profile));
+      } else if ("admin" in res) {
+        setAdmin((old) => (old && JSON.stringify(old) === JSON.stringify(res.admin) ? old : res.admin));
+        setProfile(null);
+        await AsyncStorage.setItem(profileKey, JSON.stringify(res.admin));
       } else if ("blocked" in res) {
         await block(res.blocked);
       } else {
         const raw = await AsyncStorage.getItem(profileKey);
-        const cached = raw ? (JSON.parse(raw) as Profile) : null;
-        if (cached?.id === userId) setProfile((old) => (old && JSON.stringify(old) === raw ? old : cached));
-        else setProfile(null);
+        const cached = raw ? (JSON.parse(raw) as Profile | AdminProfile) : null;
+        if (cached?.id === userId && cached.role === "admin") setAdmin((old) => (old && JSON.stringify(old) === raw ? old : (cached as AdminProfile)));
+        else if (cached?.id === userId) setProfile((old) => (old && JSON.stringify(old) === raw ? old : (cached as Profile)));
+        else {
+          setProfile(null);
+          setAdmin(null);
+        }
       }
     },
     [block],
@@ -107,7 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const id = next?.user.id ?? null;
       if (id !== userRef.current) {
         userRef.current = id;
-        if (!id) setProfile(null);
+        if (!id) {
+          setProfile(null);
+          setAdmin(null);
+        }
       }
     });
     return () => {
@@ -157,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setProfile(null);
+    setAdmin(null);
     await AsyncStorage.removeItem(profileKey);
     await supabase.auth.signOut({ scope: "local" });
   }, []);
@@ -166,8 +186,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const value = useMemo(
-    () => ({ ready, session, profile, notice, signIn, signOut, refreshProfile }),
-    [ready, session, profile, notice, signIn, signOut, refreshProfile],
+    () => ({ ready, session, profile, admin, notice, signIn, signOut, refreshProfile }),
+    [ready, session, profile, admin, notice, signIn, signOut, refreshProfile],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -183,4 +203,11 @@ export function useProfile(): Profile {
   const { profile } = useAuth();
   if (!profile) throw new Error("Sem perfil");
   return profile;
+}
+
+/** Administrador logado, dentro das telas do painel da rede (o layout já garante que existe). */
+export function useAdmin(): AdminProfile {
+  const { admin } = useAuth();
+  if (!admin) throw new Error("Sem administrador");
+  return admin;
 }

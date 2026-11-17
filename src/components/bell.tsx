@@ -2,18 +2,28 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { T } from "@/components/ui";
+import { useAdminAlerts } from "@/lib/admin-alerts";
 import { useNotifications } from "@/lib/notifications";
 import { colors } from "@/lib/theme";
 
-/** Sino das notificações, com o número do que pede atenção, como no topo do site. */
+/** Sino das notificações da loja, com o número do que pede atenção, como no topo do site. */
 export function Bell() {
   const { data } = useNotifications();
-  const count = data?.alerts.length ?? 0;
+  return <BellButton count={data?.alerts.length ?? 0} href="/notificacoes" />;
+}
+
+/** Sino do administrador da rede. */
+export function AdminBell() {
+  const { alerts } = useAdminAlerts();
+  return <BellButton count={alerts?.length ?? 0} href="/admin/notificacoes" />;
+}
+
+function BellButton({ count, href }: { count: number; href: "/notificacoes" | "/admin/notificacoes" }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={count > 0 ? `Notificações: ${count}` : "Notificações"}
-      onPress={() => router.push("/notificacoes")}
+      onPress={() => router.push(href)}
       hitSlop={6}
       style={({ pressed }) => ({ width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: pressed ? colors.line : "transparent" })}
     >
