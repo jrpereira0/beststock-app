@@ -99,7 +99,7 @@ export default function NotificacoesScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.card }}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -116,7 +116,7 @@ export default function NotificacoesScreen() {
       </View>
 
       {!data && (
-        <View style={{ alignItems: "center", paddingTop: 48 }}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 80 }}>
           <LoadingMark />
         </View>
       )}

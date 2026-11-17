@@ -31,6 +31,14 @@ export function Page({
   tab?: boolean;
   footer?: ReactNode;
 }) {
+  // Carregando: só o símbolo animado, no meio da tela (como a abertura do app).
+  if (loading && !error && !fromCache) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }} edges={tab ? ["top"] : []}>
+        <LoadingMark />
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={tab ? ["top"] : []}>
       <ScrollView
