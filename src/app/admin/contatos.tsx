@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
-import { Alert as Dialog, Linking, Pressable, View } from "react-native";
+import { Dialog } from "@/lib/dialog";
+import { Linking, Pressable, View } from "react-native";
 import { Button, Card, T } from "@/components/ui";
 import { Badge, Page } from "@/components/widgets";
 import { deleteLead, loadLeads, setLeadHandled, type Lead } from "@/lib/data-admin";

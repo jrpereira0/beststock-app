@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
-import { Alert as Dialog } from "react-native";
 import { Button, Card, Field, Notice, T } from "@/components/ui";
 import { Footer, Page } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";

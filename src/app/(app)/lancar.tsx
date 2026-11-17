@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Alert as Dialog, KeyboardAvoidingView, Platform, Pressable, ScrollView, SectionList, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, SectionList, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PageSkeleton } from "@/components/skeleton";
 import { Button, Notice, QuantityStepper, T, styles as ui } from "@/components/ui";

@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
-import { Alert as Dialog, Modal, Pressable, ScrollView, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { PaymentList } from "@/components/admin-payments";
 import { BillingFields, emptyBilling } from "@/components/billing-fields";
 import { NewPayment } from "@/components/new-payment";

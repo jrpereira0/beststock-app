@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { LoadingScreen } from "@/components/loading-mark";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { DialogHost } from "@/lib/dialog";
 import { colors } from "@/lib/theme";
 
 /** Na abertura, o símbolo animado aparece pelo menos o tempo de os blocos trocarem de lugar, como no site. */
@@ -45,6 +46,7 @@ export default function RootLayout() {
       <AuthProvider>
         <StatusBar style="dark" />
         <Gate />
+        <DialogHost />
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -1,6 +1,7 @@
 import { router, Stack } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
-import { Alert as Dialog, View } from "react-native";
+import { View } from "react-native";
 import { Button, Card, T } from "@/components/ui";
 import { Badge, Page } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";

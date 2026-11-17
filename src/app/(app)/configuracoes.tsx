@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
-import { Alert as Dialog, Modal, Pressable, ScrollView, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { Button, Card, Field, Notice, SectionTitle, T, styles as ui } from "@/components/ui";
 import { Badge, Choice, Page } from "@/components/widgets";
 import { useAuth, useProfile } from "@/lib/auth";
@@ -58,7 +59,8 @@ export default function ConfiguracoesScreen() {
     setBusy(false);
     if (!res.ok) return setEditError(res.error);
     setEditing(null);
-    if (res.data.ok) Dialog.alert("Pronto", String(res.data.ok));
+    // Espera a janela do login terminar de fechar: no iPhone, um aviso aberto no meio do fechamento não aparece.
+    if (res.data.ok) setTimeout(() => Dialog.alert("Pronto", String(res.data.ok)), 450);
     void reload();
   }
 

@@ -64,14 +64,14 @@ export function Button({
   ...rest
 }: Omit<PressableProps, "style"> & {
   label: string;
-  variant?: "primary" | "secondary" | "dark" | "danger";
+  variant?: "primary" | "secondary" | "dark" | "danger" | "dangerSolid";
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
   /** Ícone antes do texto. */
   icon?: ComponentProps<typeof Ionicons>["name"];
 }) {
-  const bg = { primary: colors.brand, secondary: colors.card, dark: colors.ink, danger: colors.card }[variant];
-  const fg = { primary: colors.ink, secondary: colors.ink, dark: "#fff", danger: colors.danger }[variant];
+  const bg = { primary: colors.brand, secondary: colors.card, dark: colors.ink, danger: colors.card, dangerSolid: colors.danger }[variant];
+  const fg = { primary: colors.ink, secondary: colors.ink, dark: "#fff", danger: colors.danger, dangerSolid: "#fff" }[variant];
   const off = disabled || busy;
   return (
     <Pressable

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Alert as Dialog, Modal, ScrollView, View } from "react-native";
+import { Dialog } from "@/lib/dialog";
+import { Modal, ScrollView, View } from "react-native";
 import { Button, Card, Field, Notice, T } from "@/components/ui";
 import { Badge, Choice, DayPicker } from "@/components/widgets";
 import { cancelPayment, markPaid, reopenPayment, type PaymentRow } from "@/lib/data-admin";

@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useCallback, useState } from "react";
-import { Alert as Dialog, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { Button, Card, Field, Notice, T } from "@/components/ui";
 import { Choice, Footer, Page, Toggle } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";

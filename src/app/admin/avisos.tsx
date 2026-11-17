@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
+import { Dialog } from "@/lib/dialog";
 import { useState } from "react";
-import { Alert as Dialog, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Button, Card, Field, Notice, SectionTitle, T } from "@/components/ui";
 import { Badge, Choice, Page, Toggle } from "@/components/widgets";
 import { deleteAnnouncement, loadAnnouncements, sendAnnouncement } from "@/lib/data-admin";

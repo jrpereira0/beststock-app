@@ -1,5 +1,6 @@
 import { router } from "expo-router";
-import { Alert as Dialog, View } from "react-native";
+import { Dialog } from "@/lib/dialog";
+import { View } from "react-native";
 import { Button } from "@/components/ui";
 import { ListLink, Page } from "@/components/widgets";
 import { useAdmin, useAuth } from "@/lib/auth";

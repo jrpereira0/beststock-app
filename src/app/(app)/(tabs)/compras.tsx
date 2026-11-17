@@ -1,7 +1,8 @@
 import * as Clipboard from "expo-clipboard";
+import { Dialog } from "@/lib/dialog";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Alert as Dialog, Linking, Pressable, View } from "react-native";
+import { Linking, Pressable, View } from "react-native";
 import { Button, Card, Notice, QuantityStepper, T } from "@/components/ui";
 import { Badge, Page, Stat } from "@/components/widgets";
 import { useProfile } from "@/lib/auth";

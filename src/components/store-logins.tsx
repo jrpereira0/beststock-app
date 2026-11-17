@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert as Dialog, Modal, ScrollView, View } from "react-native";
+import { Dialog } from "@/lib/dialog";
+import { Modal, ScrollView, View } from "react-native";
 import { Button, Field, Notice, T } from "@/components/ui";
 import { Badge, Choice } from "@/components/widgets";
 import type { SiteResult } from "@/lib/site-api";
@@ -53,7 +54,8 @@ export function StoreLogins({
     setBusy(false);
     if (!res.ok) return setError(res.error);
     setEditing(null);
-    if (res.data.ok) Dialog.alert("Pronto", String(res.data.ok));
+    // Espera a janela do login terminar de fechar: no iPhone, um aviso aberto no meio do fechamento não aparece.
+    if (res.data.ok) setTimeout(() => Dialog.alert("Pronto", String(res.data.ok)), 450);
     onChanged();
   }
 

@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Dialog } from "@/lib/dialog";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert as Dialog,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -282,11 +282,16 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
     }
     await writeQueue(AsyncStorage, inventoryId, {}).catch(() => undefined);
     setClosing(false);
-    Dialog.alert(
-      "Contagem fechada",
-      staff ? "Obrigado! O gerente vê a lista de compras no site." : "A lista de compras desta contagem já está no site, em Compras.",
-    );
     router.back();
+    // Espera a janela de fechar sumir: no iPhone, um aviso aberto no meio do fechamento não aparece.
+    setTimeout(
+      () =>
+        Dialog.alert(
+          "Contagem fechada",
+          staff ? "Obrigado! O gerente vê a lista de compras." : "A lista de compras desta contagem já está pronta, na aba Compras.",
+        ),
+      450,
+    );
   }
 
   function discard() {

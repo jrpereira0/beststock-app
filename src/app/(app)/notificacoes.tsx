@@ -1,7 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Dialog } from "@/lib/dialog";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert as Dialog, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { NotificationsSkeleton } from "@/components/skeleton";
 import { T } from "@/components/ui";
 import type { Alert } from "@/lib/alert";
