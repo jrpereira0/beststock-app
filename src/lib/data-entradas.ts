@@ -104,3 +104,56 @@ export async function deleteMovement(profile: Profile, id: string): Promise<stri
     return "Sem internet. Conecte o celular para excluir.";
   }
 }
+
+/** Se a nota já foi lançada, diz quando e por quem; se não, devolve null (igual a checkInvoice do site). */
+export async function checkInvoice(profile: Profile, key: string): Promise<string | null> {
+  if (!/^\d{44}$/.test(key)) return null;
+  const { data } = await supabase
+    .from("imported_invoices")
+    .select("created_at, created_by")
+    .eq("store_id", profile.store.id)
+    .eq("access_key", key)
+    .maybeSingle();
+  if (!data) return null;
+  const d = new Date(new Date(data.created_at as string).getTime() - 3 * 3600_000);
+  const when = `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+  const people = await loadPeople(profile.store.id, profile.store.name);
+  const who = Object.keys(people).length > 1 ? people[(data.created_by as string | null) ?? ""] : undefined;
+  return `em ${when}${who ? ` por ${who}` : ""}`;
+}
+
+/** Guarda qual produto da loja é cada item da nota, para a próxima nota do fornecedor já vir ligada. */
+export async function rememberInvoiceLinks(profile: Profile, issuerId: string, links: { code: string; productId: string; factor: number }[]) {
+  const issuer = issuerId.replace(/\D/g, "");
+  const valid = links.filter((l) => l.code && l.productId && Number.isFinite(l.factor) && l.factor > 0);
+  if (!issuer || valid.length === 0) return;
+  const unique = new Map(valid.map((l) => [l.code.slice(0, 60), l]));
+  await supabase.from("invoice_item_links").upsert(
+    [...unique].map(([code, l]) => ({
+      store_id: profile.store.id,
+      issuer_id: issuer,
+      item_code: code,
+      product_id: l.productId,
+      packs_per_unit: Math.round(l.factor * 10000) / 10000,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "store_id,issuer_id,item_code" },
+  );
+}
+
+export async function loadInvoiceData(profile: Profile) {
+  const storeId = profile.store.id;
+  return cached(`beststock:nota:${storeId}`, async () => {
+    const [products, links] = await Promise.all([
+      supabase.from("products").select("id, name, category, purchase_unit").eq("store_id", storeId).eq("active", true),
+      supabase.from("invoice_item_links").select("issuer_id, item_code, product_id, packs_per_unit").eq("store_id", storeId),
+    ]);
+    return {
+      products: (check(products) ?? []) as { id: string; name: string; category: string; purchase_unit: string }[],
+      links: ((check(links) ?? []) as { issuer_id: string; item_code: string; product_id: string; packs_per_unit: number }[]).map((l) => ({
+        ...l,
+        packs_per_unit: Number(l.packs_per_unit),
+      })),
+    };
+  });
+}

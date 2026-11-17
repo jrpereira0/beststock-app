@@ -8,10 +8,13 @@ import { categoriesOf, groupProducts } from "@/lib/count-rules";
 import { loadMovementForm, Offline, saveMovements, type MovementForm } from "@/lib/data";
 import { addDays, daysFrom, formatDate, formatDay, formatQty, today, weekday } from "@/lib/dates";
 import { isShort, unitHint, validateMovements, type Kind, type MovementProduct } from "@/lib/movements";
+import { takeInvoiceDraft, type InvoiceDraft } from "@/lib/invoice-draft";
 import { colors, font } from "@/lib/theme";
 
 export default function LancarScreen() {
-  const params = useLocalSearchParams<{ tipo?: string }>();
+  const params = useLocalSearchParams<{ tipo?: string; nota?: string }>();
+  // Vindo da nota fiscal: quantidades, data e a nota já chegam preenchidas.
+  const [draft] = useState(() => (params.nota === "1" ? takeInvoiceDraft() : null));
   const kind: Kind = params.tipo === "perda" ? "perda" : "entrada";
   const profile = useProfile();
   const [form, setForm] = useState<MovementForm | null>(null);
@@ -45,21 +48,22 @@ export default function LancarScreen() {
       </View>
     );
   }
-  return <Form kind={kind} form={form} title={title} />;
+  return <Form kind={kind} form={form} title={title} draft={kind === "entrada" ? draft : null} />;
 }
 
-function Form({ kind, form, title }: { kind: Kind; form: MovementForm; title: string }) {
+function Form({ kind, form, title, draft }: { kind: Kind; form: MovementForm; title: string; draft: InvoiceDraft | null }) {
   const profile = useProfile();
   const now = today();
-  const [date, setDate] = useState(now);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [date, setDate] = useState(draft?.date ?? now);
+  const [values, setValues] = useState<Record<string, string>>(draft?.quantities ?? {});
   const [rest, setRest] = useState<Record<string, "vem" | "nao">>({});
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const days = useMemo(() => daysFrom(addDays(now, -13), now).reverse(), [now]);
+  const start = draft && draft.date < addDays(now, -13) ? draft.date : addDays(now, -13);
+  const days = useMemo(() => daysFrom(start, now).reverse(), [start, now]);
   const sections = useMemo(
     () => groupProducts(form.products, { search, category }).map(([t, data]) => ({ title: t, data })),
     [form.products, search, category],
@@ -78,7 +82,7 @@ function Form({ kind, form, title }: { kind: Kind; form: MovementForm; title: st
       return;
     }
     setSaving(true);
-    const fail = await saveMovements(profile, kind, date, checked.items, form.products);
+    const fail = await saveMovements(profile, kind, date, checked.items, form.products, draft?.invoice ?? null);
     setSaving(false);
     if (fail) {
       setError(fail);
@@ -94,6 +98,11 @@ function Form({ kind, form, title }: { kind: Kind; form: MovementForm; title: st
 
   const header = (
     <View style={{ gap: 12, paddingBottom: 4 }}>
+      {draft && (
+        <Notice title={`Da nota ${draft.invoice.number} · ${draft.invoice.issuer}`}>
+          As quantidades vieram da nota. Confira com o que chegou de verdade e corrija o que for diferente antes de salvar.
+        </Notice>
+      )}
       <T color={colors.muted}>
         {kind === "entrada"
           ? "Preencha só os produtos que chegaram, com o número de embalagens."

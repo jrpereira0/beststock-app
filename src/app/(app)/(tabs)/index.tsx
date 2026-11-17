@@ -9,7 +9,12 @@ import { loadHome, markAnnouncementRead, openTodayCount, Offline, type Home } fr
 import { formatDate } from "@/lib/dates";
 import { useOnline } from "@/lib/network";
 import { readQueue } from "@/lib/queue";
+import { cached } from "@/lib/data";
+import { computePlan } from "@/lib/data-compras";
+import { brl } from "@/lib/site/billing";
+import type { StockPlan } from "@/lib/site/planning";
 import { colors } from "@/lib/theme";
+import { Stat } from "@/components/widgets";
 
 const ACCESS = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 
@@ -23,6 +28,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [opening, setOpening] = useState(false);
   const [pending, setPending] = useState(0);
+  const [plan, setPlan] = useState<StockPlan | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -31,6 +37,12 @@ export default function HomeScreen() {
       setHome(res.data);
       setFromCache(res.fromCache);
       setPending(res.data.draft ? Object.keys(await readQueue(AsyncStorage, res.data.draft.id)).length : 0);
+      // O gerente vê o resumo do estoque com valores; o funcionário não (nem é calculado no aparelho dele).
+      if (profile.access === "gerente" && res.data.lastClosedOn) {
+        cached(`beststock:resumo:${profile.store.id}`, () => computePlan(profile.store.id, profile.store.count_interval_days))
+          .then((p) => setPlan(p.data))
+          .catch(() => setPlan(null));
+      }
       // Com internet, confere de novo o perfil: loja bloqueada ou login removido saem na hora.
       if (!res.fromCache) void refreshProfile();
     } catch (e) {
@@ -162,6 +174,8 @@ export default function HomeScreen() {
           <Shortcut title="Registrar perda" subtitle="Produto venceu, quebrou ou estragou" onPress={() => router.push("/lancar?tipo=perda")} />
         </View>
 
+        {plan && profile.access === "gerente" && <Summary plan={plan} />}
+
         {home && home.alerts.length > 0 && (
           <View style={{ gap: 12 }}>
             <SectionTitle>Precisa da sua atenção</SectionTitle>
@@ -203,5 +217,25 @@ function Shortcut({ title, subtitle, onPress }: { title: string; subtitle: strin
         <T weight="bold" size={22} color={colors.muted}>›</T>
       </Card>
     </Pressable>
+  );
+}
+
+/** Resumo do estoque do gerente, como no início do site. */
+function Summary({ plan }: { plan: StockPlan }) {
+  const toBuy = plan.items.filter((i) => i.suggestedPacks > 0);
+  const risk = plan.items.filter((i) => i.status === "falta").length;
+  const excess = plan.items.filter((i) => i.status === "excesso").length;
+  const buyCost = toBuy.reduce((a, i) => a + i.suggestedPacks * i.product.cost_per_purchase, 0);
+  const stockValue = plan.items.reduce((a, i) => a + (i.current ?? 0) * (i.product.cost_per_purchase / i.product.units_per_purchase), 0);
+  return (
+    <View style={{ gap: 12 }}>
+      <SectionTitle>Resumo do estoque</SectionTitle>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        <Stat label="Risco de faltar" value={risk} tone={risk > 0 ? "danger" : "neutral"} onPress={() => router.navigate("/compras")} />
+        <Stat label="Para comprar" value={toBuy.length} hint={buyCost > 0 ? brl.format(buyCost) : undefined} onPress={() => router.navigate("/compras")} />
+        <Stat label="Em excesso" value={excess} onPress={() => router.push("/consumo")} />
+        <Stat label="Valor em estoque" value={stockValue > 0 ? brl.format(stockValue) : "—"} onPress={() => router.push("/consumo")} />
+      </View>
+    </View>
   );
 }

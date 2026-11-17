@@ -92,6 +92,69 @@ check("'não vai chegar' fecha o pedido", !rest.error && ord?.status === "closed
 const future = await db.rpc("register_movements", { p_kind: "entrada", p_moved_on: "2999-01-01", p_items: [{ product_id: byName["Granola"], typed: 1, rest: null }] });
 check("data no futuro é recusada", future.error?.message === "A data não pode estar no futuro.", future.error?.message);
 
+// ---- Gerente: compras, nota fiscal, cadastros, configurações e cobranças ----
+const { db: gdb, userId: gid } = await login("gerente");
+const planRes = await gdb.rpc("store_plan_data", { p_store: storeId, p_history: 8 });
+const { buildPlan } = await import("../src/lib/site/planning.ts");
+let plan = null;
+try {
+  const raw = planRes.data;
+  const inventories = raw.inventories.map((inv) => ({
+    counted_on: inv.counted_on,
+    items: Object.fromEntries(inv.items.map((it) => [it.product_id, Number(it.quantity)])),
+    stockouts: Object.fromEntries(inv.items.filter((it) => it.stockout_on).map((it) => [it.product_id, it.stockout_on])),
+  }));
+  plan = buildPlan({
+    products: raw.products.map((p) => ({ ...p, units_per_purchase: Number(p.units_per_purchase), cost_per_purchase: Number(p.cost_per_purchase), min_stock: Number(p.min_stock) })),
+    suppliers: raw.suppliers,
+    inventories,
+    movements: raw.movements.map((m) => ({ ...m, quantity: Number(m.quantity) })),
+    countIntervalDays: 7,
+    inTransit: raw.in_transit.map((t) => ({ ...t, quantity: Number(t.quantity) })),
+    today,
+  });
+} catch (e) {
+  plan = null;
+  console.log(String(e));
+}
+check("gerente calcula a lista de compras como o site", !planRes.error && plan?.inventoryCount === 2 && plan.items.length === 8, planRes.error?.message);
+
+const staffOrder = await db.from("purchase_orders").insert({ store_id: storeId, storage: "seco", ordered_on: today, expected_on: today });
+check("funcionário não cria pedido", Boolean(staffOrder.error));
+const newOrder = await gdb.from("purchase_orders").insert({ store_id: storeId, storage: "seco", ordered_on: today, expected_on: today }).select("id").single();
+const oi = await gdb.from("purchase_order_items").insert({ order_id: newOrder.data?.id, store_id: storeId, product_id: byName["Granola"], packs: 2, ordered_quantity: 2, outstanding_quantity: 2 });
+check("gerente registra pedido", !newOrder.error && !oi.error, newOrder.error?.message ?? oi.error?.message);
+const cancel = await gdb.from("purchase_orders").update({ status: "cancelled" }).eq("id", newOrder.data?.id).eq("status", "open").select("id");
+await gdb.from("purchase_order_items").update({ outstanding_quantity: 0 }).eq("order_id", newOrder.data?.id);
+check("gerente cancela pedido", cancel.data?.length === 1, cancel.error?.message);
+
+const noteKey = "3".repeat(44);
+const inv2 = await gdb.from("imported_invoices").insert({ store_id: storeId, access_key: noteKey, number: "123", issuer_name: "TESTE UI", created_by: gid }).select("id").single();
+const viaNote = await gdb.rpc("register_movements", { p_kind: "entrada", p_moved_on: today, p_items: [{ product_id: byName["Colher"], typed: 1, rest: null }], p_invoice_id: inv2.data?.id });
+const { data: noteMv } = await gdb.from("movements").select("invoice_id, quantity").eq("product_id", byName["Colher"]).eq("kind", "entrada").single();
+check("entrada pela nota fica ligada à nota", !viaNote.error && noteMv?.invoice_id === inv2.data?.id && Number(noteMv?.quantity) === 500, viaNote.error?.message ?? JSON.stringify(noteMv));
+const again = await gdb.from("imported_invoices").insert({ store_id: storeId, access_key: noteKey, number: "123", issuer_name: "TESTE UI", created_by: gid });
+check("a mesma nota não entra duas vezes", again.error?.code === "23505", again.error?.code);
+
+const newProduct = await gdb.from("products").insert({ store_id: storeId, name: "TESTE UI Produto novo", storage: "seco", count_unit: "un", purchase_unit: "caixa", units_per_purchase: 12 }).select("id").single();
+const editProduct = await gdb.from("products").update({ cost_per_purchase: 30, essential: true }).eq("id", newProduct.data?.id);
+const delProduct = await gdb.from("products").delete().eq("id", newProduct.data?.id).eq("store_id", storeId);
+check("gerente cria, edita e exclui produto", !newProduct.error && !editProduct.error && !delProduct.error, newProduct.error?.message ?? editProduct.error?.message ?? delProduct.error?.message);
+const staffProduct = await db.from("products").insert({ store_id: storeId, name: "Invasor" });
+check("funcionário não cadastra produto", Boolean(staffProduct.error));
+const usedProduct = await gdb.from("products").delete().eq("id", byName["Granola"]).eq("store_id", storeId);
+check("produto com histórico não é excluído", usedProduct.error?.code === "23503", usedProduct.error?.code);
+const sup = await gdb.from("suppliers").insert({ store_id: storeId, name: "TESTE UI Outro", lead_time_days: 3, lead_time_dry_days: 5 }).select("id").single();
+const supDel = await gdb.from("suppliers").delete().eq("id", sup.data?.id);
+check("gerente cria e exclui fornecedor", !sup.error && !supDel.error, sup.error?.message ?? supDel.error?.message);
+const settings = await gdb.rpc("update_my_store_settings", { p_count_interval_days: 7 });
+check("gerente muda o período de contagem", !settings.error, settings.error?.message);
+const charges = await gdb.rpc("generate_due_charges");
+const pays = await gdb.from("payments").select("id").eq("store_id", storeId);
+check("financeiro gera e lê as cobranças da loja", !charges.error && !pays.error, charges.error?.message ?? pays.error?.message);
+const delMove = await gdb.from("movements").delete().eq("product_id", byName["Granola"]).eq("kind", "perda").eq("store_id", storeId).select("id");
+check("excluir lançamento", delMove.data?.length === 1, delMove.error?.message);
+
 // Outra loja não vê nada disso.
 const anon = await createClient(url, key, opts).rpc("register_movements", { p_kind: "perda", p_moved_on: today, p_items: [] });
 check("sem login não lança", Boolean(anon.error));

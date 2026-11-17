@@ -382,16 +382,45 @@ export async function loadMovementForm(profile: Profile, kind: Kind) {
 }
 
 /** Grava os lançamentos. A entrada passa pela função do banco, que também dá baixa nos pedidos em aberto. */
-export async function saveMovements(profile: Profile, kind: Kind, date: string, items: MovementItem[], products: MovementProduct[]): Promise<string | null> {
+export async function saveMovements(
+  profile: Profile,
+  kind: Kind,
+  date: string,
+  items: MovementItem[],
+  products: MovementProduct[],
+  invoice: { key: string; number: string; issuer: string; issuedOn: string } | null = null,
+): Promise<string | null> {
   const offline = "Sem internet. O lançamento não foi salvo: conecte o celular e toque em salvar de novo.";
   try {
     if (kind === "entrada") {
+      // Entrada que veio do XML da nota: a nota fica registrada e não pode ser lançada de novo (igual ao site).
+      let invoiceId: string | null = null;
+      if (invoice) {
+        if (!/^\d{44}$/.test(invoice.key)) return "A chave da nota fiscal está errada. Envie o XML de novo.";
+        const { data, error } = await supabase
+          .from("imported_invoices")
+          .insert({
+            store_id: profile.store.id,
+            access_key: invoice.key,
+            number: invoice.number,
+            issuer_name: invoice.issuer,
+            issued_on: isIsoDate(invoice.issuedOn) ? invoice.issuedOn : null,
+            created_by: profile.id,
+          })
+          .select("id")
+          .single();
+        if (error?.code === "23505") return "Esta nota já foi lançada. Veja o histórico de entradas.";
+        if (error || !data) return error && isNetworkError(error) ? offline : "Não foi possível registrar a nota fiscal.";
+        invoiceId = data.id as string;
+      }
       const { error } = await supabase.rpc("register_movements", {
         p_kind: kind,
         p_moved_on: date,
         p_items: items.map((i) => ({ product_id: i.product_id, typed: i.typed, rest: i.rest })),
+        p_invoice_id: invoiceId,
       });
       if (!error) return null;
+      if (invoiceId) await supabase.from("imported_invoices").delete().eq("id", invoiceId).eq("store_id", profile.store.id);
       if (isNetworkError(error)) return offline;
       return error.code === "P0001" ? error.message : "Não foi possível salvar os lançamentos.";
     }
