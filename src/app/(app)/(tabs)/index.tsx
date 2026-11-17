@@ -25,7 +25,7 @@ const ACCESS = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 
 export default function HomeScreen() {
   const profile = useProfile();
-  const { signOut, refreshProfile } = useAuth();
+  const { refreshProfile } = useAuth();
   const { refresh: refreshNotifications } = useNotifications();
   const online = useOnline();
   const [home, setHome] = useState<Home | null>(null);
@@ -134,21 +134,8 @@ export default function HomeScreen() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Logo size={24} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          {/* Sair fica na aba Mais, como no site. */}
           <Bell />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              Dialog.alert("Sair do app?", "Para entrar de novo vai precisar do e-mail e da senha.", [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Sair", style: "destructive", onPress: () => void signOut() },
-              ])
-            }
-            style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: 8 }}
-          >
-            <T weight="semibold" style={{ textDecorationLine: "underline" }}>Sair</T>
-          </Pressable>
-          </View>
         </View>
 
         <View>
