@@ -9,7 +9,9 @@ import { loadHome, markAnnouncementRead, openTodayCount, Offline, type Home } fr
 import { formatDate } from "@/lib/dates";
 import { useOnline } from "@/lib/network";
 import { readQueue } from "@/lib/queue";
+import { Bell } from "@/components/bell";
 import { cached } from "@/lib/data";
+import { useNotifications } from "@/lib/notifications";
 import { computePlan } from "@/lib/data-compras";
 import { brl } from "@/lib/site/billing";
 import type { StockPlan } from "@/lib/site/planning";
@@ -21,6 +23,7 @@ const ACCESS = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 export default function HomeScreen() {
   const profile = useProfile();
   const { signOut, refreshProfile } = useAuth();
+  const { refresh: refreshNotifications } = useNotifications();
   const online = useOnline();
   const [home, setHome] = useState<Home | null>(null);
   const [fromCache, setFromCache] = useState(false);
@@ -45,10 +48,11 @@ export default function HomeScreen() {
       }
       // Com internet, confere de novo o perfil: loja bloqueada ou login removido saem na hora.
       if (!res.fromCache) void refreshProfile();
+      void refreshNotifications();
     } catch (e) {
       setError(e instanceof Offline ? "Sem internet e nada guardado neste aparelho ainda. Conecte o celular." : "Não foi possível carregar.");
     }
-  }, [profile, refreshProfile]);
+  }, [profile, refreshProfile, refreshNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -80,6 +84,7 @@ export default function HomeScreen() {
   async function markRead(id: string) {
     try {
       await markAnnouncementRead(profile.id, id);
+      void refreshNotifications();
       setHome((h) => (h ? { ...h, alerts: h.alerts.filter((a) => a.announcementId !== id) } : h));
     } catch {
       Dialog.alert("Sem internet", "Conecte o celular para marcar como lido.");
@@ -126,6 +131,8 @@ export default function HomeScreen() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Logo size={24} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Bell />
           <Pressable
             accessibilityRole="button"
             onPress={() =>
@@ -138,6 +145,7 @@ export default function HomeScreen() {
           >
             <T weight="semibold" style={{ textDecorationLine: "underline" }}>Sair</T>
           </Pressable>
+          </View>
         </View>
 
         <View>

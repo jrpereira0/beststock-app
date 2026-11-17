@@ -15,10 +15,13 @@ const files = [
   "types.ts",
   "category-order.ts",
   "inventory-status.ts",
+  "setup.ts",
 ];
+// O tipo Alert do site mora em notifications.ts, que depende do servidor: no app ele fica em src/lib/alert.ts.
+const rewrite = (text) => text.replace('from "./notifications"', 'from "../alert"');
 mkdirSync("src/lib/site", { recursive: true });
 for (const f of files) {
   const text = readFileSync(join(site, "src/lib", f), "utf8");
-  writeFileSync(join("src/lib/site", f), `// Copiado de beststock/src/lib/${f} por scripts/copiar-do-site.mjs. Não edite aqui.\n${text}`);
+  writeFileSync(join("src/lib/site", f), `// Copiado de beststock/src/lib/${f} por scripts/copiar-do-site.mjs. Não edite aqui.\n${rewrite(text)}`);
   console.log(`copiado: ${f}`);
 }

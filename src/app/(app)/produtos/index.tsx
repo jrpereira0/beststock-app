@@ -1,4 +1,4 @@
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { Button, Card, T, styles as ui } from "@/components/ui";
@@ -39,7 +39,8 @@ export default function ProdutosScreen() {
   const load = useCallback(() => loadProducts(profile), [profile]);
   const { data, fromCache, error, refreshing, refresh } = useLoad(load);
   const [search, setSearch] = useState("");
-  const [missing, setMissing] = useState<Missing | null>(null);
+  const { falta } = useLocalSearchParams<{ falta?: string }>();
+  const [missing, setMissing] = useState<Missing | null>(falta === "fornecedor" || falta === "custo" || falta === "minimo" ? falta : null);
 
   const products = useMemo(() => data?.products ?? [], [data]);
   const active = products.filter((p) => p.active).length;

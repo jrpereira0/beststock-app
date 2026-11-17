@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Bell } from "@/components/bell";
 import { LoadingMark } from "@/components/loading-mark";
 import { Card, Notice, T } from "@/components/ui";
 import { colors } from "@/lib/theme";
@@ -38,9 +39,12 @@ export function Page({
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}
       >
         {title && (
-          <View style={{ gap: 2 }}>
-            <T weight="extrabold" size={26}>{title}</T>
-            {subtitle && <T color={colors.muted}>{subtitle}</T>}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T weight="extrabold" size={26}>{title}</T>
+              {subtitle && <T color={colors.muted}>{subtitle}</T>}
+            </View>
+            {tab && <Bell />}
           </View>
         )}
         {fromCache && (
