@@ -28,6 +28,8 @@ export type Report = {
   separateBy?: number;
   /** Folha na impressão. Sem isso, deitada quando a tabela tem mais de 5 colunas. */
   orientation?: "portrait" | "landscape";
+  /** Planilha para escrever à mão: linhas altas e folhas certas, sem uma última folha quase vazia. */
+  handwritten?: boolean;
 };
 
 /** Folha em pé ou deitada para imprimir o relatório. */
@@ -170,6 +172,33 @@ export function withSeparators(report: Report): (Cell[] | null)[] {
   return out;
 }
 
+/**
+ * Folhas certas no Excel: com a largura das colunas (em caracteres da fonte padrão) o Excel encolhe a
+ * planilha para caber na largura da folha A4; com essa escala, escolhe o menor número de folhas e a
+ * altura das linhas para encher as folhas por igual (a mesma ideia de lib/print-fit.ts para o PDF).
+ */
+function fitXlsxPages(report: Report, widths: number[]) {
+  const pt = (mm: number) => Math.round(((mm * 72) / 25.4) * 10) / 10;
+  // Largura da coluna em pontos: o Excel usa 7 px por caractere mais 5 px de folga, a 96 px por polegada.
+  const tablePt = widths.reduce((sum, w) => sum + Math.trunc(w * 7 + 5), 0) * 0.75;
+  const printWidth = (8.27 - 0.8) * 72;
+  const printHeight = (11.69 - 1.0) * 72;
+  const scale = Math.min(1, printWidth / tablePt);
+  const headerPt = 20;
+  const separatorPt = 10;
+  const separators = withSeparators(report).filter((line) => line === null).length;
+  const rows = report.rows.length;
+  // Altura útil por folha, sem escala, descontando o cabeçalho que se repete e uma linha de folga.
+  const perPage = (minRow: number) => printHeight / scale - headerPt - minRow;
+  // Mínima e máxima da linha já impressa: com a planilha encolhida, a linha no arquivo precisa ser mais alta.
+  const minRow = pt(6.5) / scale;
+  const maxRow = pt(11) / scale;
+  let pages = 1;
+  while (pages * perPage(minRow) < rows * minRow + separators * separatorPt) pages++;
+  const rowPt = Math.min(maxRow, Math.floor(((pages * perPage(maxRow) - separators * separatorPt) / rows) * 10) / 10);
+  return { pages, rowPt: Math.max(minRow, rowPt), headerPt, separatorPt };
+}
+
 export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
   const cols = report.columns;
   const lines = withSeparators(report);
@@ -183,18 +212,22 @@ export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
     return Math.min(48, Math.max(10, longest + 3));
   });
 
+  // Planilha para escrever à mão: altura das linhas e número de folhas (A4 em pé) para as folhas saírem cheias.
+  const fit = report.handwritten ? fitXlsxPages(report, widths) : null;
+  const ht = (pt: number | undefined) => (pt ? ` ht="${pt}" customHeight="1"` : "");
+
   const rowsXml: string[] = [];
   let r = 1;
   rowsXml.push(
-    `<row r="${r}">${cols.map((c, i) => `<c r="${columnName(i)}${r}" s="${c.align === "right" ? 9 : 1}" t="inlineStr"><is><t>${escape(c.label)}</t></is></c>`).join("")}</row>`,
+    `<row r="${r}"${ht(fit?.headerPt)}>${cols.map((c, i) => `<c r="${columnName(i)}${r}" s="${c.align === "right" ? 9 : 1}" t="inlineStr"><is><t>${escape(c.label)}</t></is></c>`).join("")}</row>`,
   );
   for (const line of lines) {
     r++;
     if (!line) {
-      rowsXml.push(`<row r="${r}"/>`);
+      rowsXml.push(`<row r="${r}"${ht(fit?.separatorPt)}/>`);
       continue;
     }
-    rowsXml.push(`<row r="${r}">${line.map((v, i) => cellXml(`${columnName(i)}${r}`, v, cols[i], false)).join("")}</row>`);
+    rowsXml.push(`<row r="${r}"${ht(fit?.rowPt)}>${line.map((v, i) => cellXml(`${columnName(i)}${r}`, v, cols[i], false)).join("")}</row>`);
   }
   if (report.total) {
     r++;
@@ -208,7 +241,7 @@ export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
 <cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>
 <sheetData>${rowsXml.join("")}</sheetData>
 <pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
-<pageSetup paperSize="9" orientation="${orientationOf(report)}" fitToWidth="1" fitToHeight="0"/>
+<pageSetup paperSize="9" orientation="${orientationOf(report)}" fitToWidth="1" fitToHeight="${fit?.pages ?? 0}"/>
 </worksheet>`;
 
   return zip([
@@ -225,7 +258,10 @@ export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
     {
       name: "xl/workbook.xml",
       data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escape(sheetName(report.sheet))}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escape(sheetName(report.sheet))}" sheetId="1" r:id="rId1"/></sheets>${
+        // O cabeçalho (primeira linha) se repete no alto de cada folha impressa.
+        fit ? `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${escape(sheetName(report.sheet).replace(/'/g, "''"))}'!$1:$1</definedName></definedNames>` : ""
+      }</workbook>`,
     },
     {
       name: "xl/_rels/workbook.xml.rels",

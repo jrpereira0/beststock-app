@@ -5,6 +5,7 @@
 import { File, Paths } from "expo-file-system";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { Platform } from "react-native";
 import { callSite } from "./site-api";
 import { reportHtml } from "./report-html.ts";
 import { orientationOf, toXlsx, type Report } from "./site/xlsx";
@@ -41,7 +42,15 @@ export async function exportPdf(kind: ReportKind, id?: string): Promise<string |
   if (typeof report === "string") return report;
   const landscape = orientationOf(report) === "landscape";
   // A4 em pontos (72 por polegada): em pé 595 × 842, deitada 842 × 595, como a página de imprimir do site.
-  const { uri } = await Print.printToFileAsync({ html: reportHtml(report, kind === "modelo"), width: landscape ? 842 : 595, height: landscape ? 595 : 842 });
+  // Margens de 10 mm (28 pontos), as mesmas da página de imprimir do site e da conta das folhas. No iPhone
+  // a margem vem da opção do gerador (a do HTML ficaria em dobro); no Android, do próprio HTML.
+  const ios = Platform.OS === "ios";
+  const { uri } = await Print.printToFileAsync({
+    html: reportHtml(report, kind === "modelo", ios ? "0" : "10mm"),
+    width: landscape ? 842 : 595,
+    height: landscape ? 595 : 842,
+    ...(ios ? { margins: { left: 28, right: 28, top: 28, bottom: 28 } } : {}),
+  });
   const file = cacheFile(`${report.filename}.pdf`);
   new File(uri).move(file);
   await Sharing.shareAsync(file.uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf", dialogTitle: report.title });

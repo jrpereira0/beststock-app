@@ -1,6 +1,7 @@
 // O relatório em HTML para virar PDF, com o desenho da página de imprimir do site (app/imprimir).
 import { formatQty } from "./dates.ts";
-import type { Cell, Column, Report } from "./site/xlsx.ts";
+import { fitBlankSheet, PRINT } from "./site/print-fit.ts";
+import { orientationOf, type Cell, type Column, type Report } from "./site/xlsx.ts";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -17,7 +18,7 @@ const MARK =
  * O relatório em HTML para o PDF, com o mesmo desenho da página de imprimir do site: título, loja e data,
  * a tabela com o tipo como título de cada grupo, linhas altas na planilha em branco e o total no fim.
  */
-export function reportHtml(report: Report, blank: boolean): string {
+export function reportHtml(report: Report, blank: boolean, pageMargin = "10mm"): string {
   const right = (c: Column) => c.kind === "number" || c.kind === "money" || c.align === "right";
   const grouped = report.separateBy !== undefined;
   const shown = report.columns.map((_, i) => i).filter((i) => i !== report.separateBy);
@@ -28,6 +29,8 @@ export function reportHtml(report: Report, blank: boolean): string {
     if (last && last[0] === key) last[1].push(row);
     else groups.push([key, [row]]);
   }
+  // Planilha em branco: folhas certas, com as mesmas medidas da página de imprimir do site.
+  const fit = blank ? fitBlankSheet(report.rows.length, grouped ? groups.length : 0) : null;
   const head = shown
     .map((i) => {
       const c = report.columns[i];
@@ -65,7 +68,7 @@ export function reportHtml(report: Report, blank: boolean): string {
   const p = (n: number) => String(n).padStart(2, "0");
   const when = `${p(now.getUTCDate())}/${p(now.getUTCMonth() + 1)}/${String(now.getUTCFullYear()).slice(2)} ${p(now.getUTCHours())}:${p(now.getUTCMinutes())}`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-    @page { margin: 10mm; }
+    @page { size: A4 ${orientationOf(report)}; margin: ${pageMargin}; }
     body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #141414; margin: 0; }
     header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #141414; padding-bottom: 8px; margin-bottom: 12px; }
     h1 { font-size: 20px; margin: 0; font-weight: 800; }
@@ -78,7 +81,16 @@ export function reportHtml(report: Report, blank: boolean): string {
     tr.g th { border: none; padding: 12px 2px 5px; font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
     tr { page-break-inside: avoid; }
     .r { text-align: right; } .b { font-weight: 600; } .n { font-variant-numeric: tabular-nums; }
-    .w { width: 15%; } .t { height: 22px; } tr.z td { background: #f4f2ed; }
+    .w { width: 15%; } .t { height: 22px; } tr.z td { background: #f4f2ed; }${
+      fit
+        ? `
+    header { height: ${PRINT.header - 4}mm; margin-bottom: 4mm; overflow: hidden; box-sizing: border-box; }
+    thead tr { height: ${PRINT.thead}mm; }
+    tr.g { height: ${PRINT.group}mm; } tr.g th { padding: 3mm 2px 1mm; }
+    td.t { height: ${fit.rowMm}mm; padding-top: 0; padding-bottom: 0; vertical-align: middle; box-sizing: border-box; }
+    .foot { height: ${PRINT.footer}mm; margin: 0; padding-top: 3mm; box-sizing: border-box; }`
+        : ""
+    }
     /* Planilha em branco: larguras fixas, para as quatro semanas caberem na folha em pé. */
     table.fixed { table-layout: fixed; } table.fixed thead th { font-size: 8pt; letter-spacing: 0; word-break: break-word; }
     tfoot td { font-weight: 800; background: #f2f2f2; }

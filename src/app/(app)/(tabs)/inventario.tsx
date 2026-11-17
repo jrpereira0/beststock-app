@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { ExportButtons } from "@/components/export-buttons";
+import { PaperCount } from "@/components/paper-count";
 import { Guide } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
@@ -63,9 +63,6 @@ export default function InventarioTab() {
       skeleton="dashboard"
       loading={!data}
     >
-      {/* Para quem prefere contar no papel e digitar depois. */}
-      <ExportButtons report="modelo" sheetLabel="Planilha em branco" pdfLabel="Imprimir para contar" />
-
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <Stat
           label="Última contagem"
@@ -118,6 +115,9 @@ export default function InventarioTab() {
           <Button label={opening ? "Abrindo…" : "Iniciar contagem"} busy={opening} onPress={() => void start()} />
         </Card>
       )}
+
+      {/* Para quem prefere contar no papel e digitar depois. */}
+      <PaperCount />
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
         <T weight="bold" size={13} color={colors.muted} style={{ textTransform: "uppercase", letterSpacing: 1 }}>Histórico</T>
