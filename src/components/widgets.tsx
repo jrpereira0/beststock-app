@@ -1,10 +1,13 @@
-import type { ReactNode } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import type { ComponentProps, ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AdminBell, Bell } from "@/components/bell";
 import { PageSkeleton } from "@/components/skeleton";
 import { Card, Notice, T } from "@/components/ui";
 import { colors } from "@/lib/theme";
+
+export type IconName = ComponentProps<typeof Ionicons>["name"];
 
 /** Página com rolagem, título, "puxar para atualizar", aviso de sem internet e erro de carga. */
 export function Page({
@@ -81,10 +84,28 @@ export function Footer({ children }: { children: ReactNode }) {
 }
 
 /** Linha de lista que abre outra tela. */
-export function ListLink({ title, subtitle, onPress, right }: { title: string; subtitle?: string; onPress: () => void; right?: ReactNode }) {
+export function ListLink({
+  title,
+  subtitle,
+  onPress,
+  right,
+  icon,
+}: {
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+  right?: ReactNode;
+  /** Ícone à esquerda, como nas listas do site. */
+  icon?: IconName;
+}) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
       <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 }}>
+        {icon && (
+          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name={icon} size={24} color={colors.ink} />
+          </View>
+        )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <T weight="bold" size={17}>{title}</T>
           {subtitle ? <T size={14} color={colors.muted}>{subtitle}</T> : null}

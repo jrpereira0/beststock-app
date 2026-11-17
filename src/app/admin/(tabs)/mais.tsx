@@ -11,12 +11,13 @@ export default function AdminMais() {
   return (
     <Page tab="admin" title="Mais opções" subtitle={admin.email}>
       <View style={{ gap: 10 }}>
-        <ListLink title="Avisos" subtitle="Mensagens para as unidades" onPress={() => router.push("/admin/avisos")} />
-        <ListLink title="Contatos" subtitle="Pedidos de demonstração do site" onPress={() => router.push("/admin/contatos")} />
-        <ListLink title="Lista padrão" subtitle="Produtos copiados para unidades novas" onPress={() => router.push("/admin/catalogo")} />
+        <ListLink icon="megaphone-outline" title="Avisos" subtitle="Mensagens para as unidades" onPress={() => router.push("/admin/avisos")} />
+        <ListLink icon="people-outline" title="Contatos" subtitle="Pedidos de demonstração do site" onPress={() => router.push("/admin/contatos")} />
+        <ListLink icon="list-outline" title="Lista padrão" subtitle="Produtos copiados para unidades novas" onPress={() => router.push("/admin/catalogo")} />
       </View>
       <Button
         label="Sair do sistema"
+        icon="log-out-outline"
         variant="secondary"
         onPress={() =>
           Dialog.alert("Sair do app?", "Para entrar de novo vai precisar do e-mail e da senha.", [

@@ -13,15 +13,16 @@ export default function MaisTab() {
     <Page tab title="Mais opções" subtitle={profile.email}>
       {manager && (
         <View style={{ gap: 10 }}>
-          <ListLink title="Consumo" subtitle="O que mais sai e o que está parado" onPress={() => router.push("/consumo")} />
-          <ListLink title="Produtos" subtitle="Cadastrar e editar produtos" onPress={() => router.push("/produtos")} />
-          <ListLink title="Fornecedores" subtitle="Prazos de entrega do gelado e do seco" onPress={() => router.push("/fornecedores")} />
-          <ListLink title="Financeiro" subtitle="Plano, cobranças e pagamentos da unidade" onPress={() => router.push("/financeiro")} />
-          <ListLink title="Configurações" subtitle="Período de contagem e logins da loja" onPress={() => router.push("/configuracoes")} />
+          <ListLink icon="bar-chart-outline" title="Consumo" subtitle="O que mais sai e o que está parado" onPress={() => router.push("/consumo")} />
+          <ListLink icon="cube-outline" title="Produtos" subtitle="Cadastrar e editar produtos" onPress={() => router.push("/produtos")} />
+          <ListLink icon="car-outline" title="Fornecedores" subtitle="Prazos de entrega do gelado e do seco" onPress={() => router.push("/fornecedores")} />
+          <ListLink icon="receipt-outline" title="Financeiro" subtitle="Plano, cobranças e pagamentos da unidade" onPress={() => router.push("/financeiro")} />
+          <ListLink icon="settings-outline" title="Configurações" subtitle="Período de contagem e logins da loja" onPress={() => router.push("/configuracoes")} />
         </View>
       )}
       <Button
         label="Sair do sistema"
+        icon="log-out-outline"
         variant="secondary"
         onPress={() =>
           Dialog.alert("Sair do app?", "Para entrar de novo vai precisar do e-mail e da senha.", [

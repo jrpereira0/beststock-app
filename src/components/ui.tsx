@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -59,12 +60,15 @@ export function Button({
   busy = false,
   disabled = false,
   style,
+  icon,
   ...rest
 }: Omit<PressableProps, "style"> & {
   label: string;
   variant?: "primary" | "secondary" | "dark" | "danger";
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Ícone antes do texto. */
+  icon?: ComponentProps<typeof Ionicons>["name"];
 }) {
   const bg = { primary: colors.brand, secondary: colors.card, dark: colors.ink, danger: colors.card }[variant];
   const fg = { primary: colors.ink, secondary: colors.ink, dark: "#fff", danger: colors.danger }[variant];
@@ -83,7 +87,14 @@ export function Button({
       ]}
       {...rest}
     >
-      {busy ? <ActivityIndicator color={fg} /> : <T weight="bold" size={17} color={fg} style={{ textAlign: "center" }}>{label}</T>}
+      {busy ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {icon && <Ionicons name={icon} size={20} color={fg} />}
+          <T weight="bold" size={17} color={fg} style={{ textAlign: "center" }}>{label}</T>
+        </View>
+      )}
     </Pressable>
   );
 }

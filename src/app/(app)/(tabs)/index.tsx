@@ -3,7 +3,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert as Dialog, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Card, Logo, Notice, SectionTitle, T } from "@/components/ui";
+import { Button, Logo, Notice, SectionTitle, T } from "@/components/ui";
 import { useAuth, useProfile } from "@/lib/auth";
 import { loadHome, markAnnouncementRead, openTodayCount, Offline, type Home } from "@/lib/data";
 import { formatDate } from "@/lib/dates";
@@ -16,7 +16,7 @@ import { computePlan } from "@/lib/data-compras";
 import { brl } from "@/lib/site/billing";
 import type { StockPlan } from "@/lib/site/planning";
 import { colors } from "@/lib/theme";
-import { Stat } from "@/components/widgets";
+import { ListLink, Stat } from "@/components/widgets";
 
 const ACCESS = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 
@@ -177,9 +177,16 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ gap: 12 }}>
-          <SectionTitle>Lançar</SectionTitle>
-          <Shortcut title="Registrar entrada" subtitle="Chegou mercadoria do fornecedor" onPress={() => router.push("/lancar?tipo=entrada")} />
-          <Shortcut title="Registrar perda" subtitle="Produto venceu, quebrou ou estragou" onPress={() => router.push("/lancar?tipo=perda")} />
+          <SectionTitle>Atalhos</SectionTitle>
+          <ListLink icon="add-circle-outline" title="Registrar entrada" subtitle="Chegou mercadoria do fornecedor" onPress={() => router.push("/lancar?tipo=entrada")} />
+          <ListLink icon="remove-circle-outline" title="Registrar perda" subtitle="Produto venceu, quebrou ou estragou" onPress={() => router.push("/lancar?tipo=perda")} />
+          <ListLink icon="clipboard-outline" title="Inventário" subtitle="Contar o estoque e ver o histórico" onPress={() => router.navigate("/inventario")} />
+          {profile.access === "gerente" && (
+            <>
+              <ListLink icon="bar-chart-outline" title="Consumo" subtitle="O que mais sai e o que está parado" onPress={() => router.push("/consumo")} />
+              <ListLink icon="cube-outline" title="Produtos" subtitle="Cadastrar e editar produtos" onPress={() => router.push("/produtos")} />
+            </>
+          )}
         </View>
 
         {plan && profile.access === "gerente" && <Summary plan={plan} />}
@@ -211,20 +218,6 @@ export default function HomeScreen() {
         </T>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Shortcut({ title, subtitle, onPress }: { title: string; subtitle: string; onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <T weight="bold" size={17}>{title}</T>
-          <T size={14} color={colors.muted}>{subtitle}</T>
-        </View>
-        <T weight="bold" size={22} color={colors.muted}>›</T>
-      </Card>
-    </Pressable>
   );
 }
 
