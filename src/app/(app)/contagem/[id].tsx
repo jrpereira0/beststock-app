@@ -131,6 +131,9 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
   const missing = data.products.length - countedTotal;
   const percent = data.products.length ? Math.round((countedTotal / data.products.length) * 100) : 0;
   const pendingCount = Object.keys(queue).length;
+  // Guardado de verdade esperando a internet. Todo número passa pela fila por um instante antes de ir
+  // ao banco; contar esse instante fazia o aviso piscar no topo e a lista pular a cada toque no + e no −.
+  const waitingCount = Object.keys(queue).filter((pid) => status[pid] === "queued").length;
 
   const sections = useMemo(
     () =>
@@ -326,8 +329,8 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
 
   const header = (
     <View style={{ gap: 12, paddingBottom: 8 }}>
-      {(pendingCount > 0 || !online || fromCache) && (
-        <Notice tone="warn" title={pendingCount > 0 ? `Sem internet: ${pendingCount} ${pendingCount === 1 ? "contagem guardada" : "contagens guardadas"} neste aparelho` : "Sem internet"}>
+      {(waitingCount > 0 || !online || fromCache) && (
+        <Notice tone="warn" title={waitingCount > 0 ? `Sem internet: ${waitingCount} ${waitingCount === 1 ? "contagem guardada" : "contagens guardadas"} neste aparelho` : "Sem internet"}>
           Pode continuar contando. O app envia sozinho quando a conexão voltar. Não desinstale o app nem saia do login antes disso.
         </Notice>
       )}
