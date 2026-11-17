@@ -110,7 +110,8 @@ export default function NotaScreen() {
 
   const term = search.trim().toLowerCase();
   return (
-    <Page subtitle="Envie o XML da nota e a entrada vem preenchida. Depois é só conferir e salvar." fromCache={fromCache} error={loadError} loading={!data}>
+    <Page subtitle="Envie o XML da nota e a entrada vem preenchida. Depois é só conferir e salvar." fromCache={fromCache} error={loadError} skeleton="list"
+      loading={!data}>
       <Stack.Screen options={{ title: "Entrada pela nota" }} />
       <Card style={{ gap: 10 }}>
         <T weight="semibold">Arquivo XML da nota fiscal</T>

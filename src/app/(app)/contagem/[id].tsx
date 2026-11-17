@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ClosedCount } from "@/components/closed-count";
-import { LoadingMark } from "@/components/loading-mark";
+import { PageSkeleton } from "@/components/skeleton";
 import { Button, Notice, T, styles as ui } from "@/components/ui";
 import { useProfile } from "@/lib/auth";
 import {
@@ -75,9 +75,7 @@ export default function CountScreen() {
   }
   if (!data) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <LoadingMark />
-      </View>
+      <PageSkeleton title={false} variant="count" />
     );
   }
   if (data.inventory.status !== "draft") {

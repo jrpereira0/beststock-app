@@ -99,6 +99,7 @@ export default function ConsumoScreen() {
       onRefresh={() => void refresh()}
       fromCache={fromCache}
       error={error}
+      skeleton="dashboard"
       loading={!plan}
     >
       <Stack.Screen options={{ title: "Consumo" }} />

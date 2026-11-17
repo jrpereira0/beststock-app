@@ -29,6 +29,7 @@ export default function FinanceiroScreen() {
       onRefresh={() => void refresh()}
       fromCache={fromCache}
       error={error}
+      skeleton="dashboard"
       loading={!data}
     >
       <Stack.Screen options={{ title: "Financeiro" }} />

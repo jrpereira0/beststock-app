@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert as Dialog, KeyboardAvoidingView, Platform, Pressable, ScrollView, SectionList, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LoadingMark } from "@/components/loading-mark";
+import { PageSkeleton } from "@/components/skeleton";
 import { Button, Notice, QuantityStepper, T, styles as ui } from "@/components/ui";
 import { useProfile } from "@/lib/auth";
 import { categoriesOf, groupProducts } from "@/lib/count-rules";
@@ -43,9 +43,9 @@ export default function LancarScreen() {
   }
   if (!form) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1 }}>
         <Stack.Screen options={{ title }} />
-        <LoadingMark />
+        <PageSkeleton title={false} variant="count" />
       </View>
     );
   }

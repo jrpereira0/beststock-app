@@ -56,6 +56,7 @@ export default function InventarioTab() {
       onRefresh={() => void refresh()}
       fromCache={fromCache}
       error={error}
+      skeleton="dashboard"
       loading={!data}
     >
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>

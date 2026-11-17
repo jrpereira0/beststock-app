@@ -85,6 +85,7 @@ export default function PedidoScreen() {
       subtitle="Use quando você comprou fora da lista: por telefone, WhatsApp ou direto com o fornecedor. O sistema passa a contar esse pedido como a caminho e não sugere de novo esses produtos até a mercadoria chegar."
       fromCache={fromCache}
       error={error}
+      skeleton="count"
       loading={!data}
       footer={
         data && (

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Bell } from "@/components/bell";
-import { LoadingMark } from "@/components/loading-mark";
+import { PageSkeleton } from "@/components/skeleton";
 import { Card, Notice, T } from "@/components/ui";
 import { colors } from "@/lib/theme";
 
@@ -18,6 +18,7 @@ export function Page({
   loading = false,
   tab = false,
   footer,
+  skeleton = "list",
 }: {
   title?: string;
   subtitle?: string;
@@ -30,12 +31,14 @@ export function Page({
   /** Tela de aba: sem cabeçalho de navegação, então respeita a área do relógio. */
   tab?: boolean;
   footer?: ReactNode;
+  /** Formato do esqueleto enquanto carrega: lista, contagem ou painel com números. */
+  skeleton?: "list" | "count" | "dashboard";
 }) {
-  // Carregando: só o símbolo animado, no meio da tela (como a abertura do app).
+  // Carregando: o esqueleto da tela, com blocos que piscam (como o carregamento do site).
   if (loading && !error && !fromCache) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }} edges={tab ? ["top"] : []}>
-        <LoadingMark />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={tab ? ["top"] : []}>
+        <PageSkeleton title={Boolean(title)} variant={skeleton} />
       </SafeAreaView>
     );
   }
@@ -61,13 +64,7 @@ export function Page({
           </Notice>
         )}
         {error && <Notice tone="danger">{error}</Notice>}
-        {loading && !error ? (
-          <View style={{ alignItems: "center", marginTop: 48 }}>
-            <LoadingMark />
-          </View>
-        ) : (
-          children
-        )}
+        {loading && !error ? <PageSkeleton title={false} variant={skeleton} /> : children}
       </ScrollView>
       {footer}
     </SafeAreaView>

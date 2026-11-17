@@ -98,6 +98,7 @@ export default function ComprasTab() {
       onRefresh={() => void refresh()}
       fromCache={fromCache}
       error={error}
+      skeleton="dashboard"
       loading={!data}
     >
       <Button label="Registrar pedido que já fiz" variant="secondary" onPress={() => router.push("/pedido")} />

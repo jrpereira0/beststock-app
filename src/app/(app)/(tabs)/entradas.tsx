@@ -59,6 +59,7 @@ export default function EntradasTab() {
       onRefresh={() => void refresh()}
       fromCache={fromCache}
       error={error}
+      skeleton="dashboard"
       loading={!data}
     >
       <View style={{ gap: 8 }}>

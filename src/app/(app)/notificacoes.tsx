@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert as Dialog, Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { LoadingMark } from "@/components/loading-mark";
+import { NotificationsSkeleton } from "@/components/skeleton";
 import { T } from "@/components/ui";
 import type { Alert } from "@/lib/alert";
 import { useProfile } from "@/lib/auth";
@@ -99,7 +99,7 @@ export default function NotificacoesScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.card }}
-      contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+      contentContainerStyle={{ paddingBottom: 40 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -115,11 +115,7 @@ export default function NotificacoesScreen() {
         <T color={colors.muted}>O que precisa da sua atenção e os avisos do administrador.</T>
       </View>
 
-      {!data && (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 80 }}>
-          <LoadingMark />
-        </View>
-      )}
+      {!data && <NotificationsSkeleton />}
 
       {data && alerts.length === 0 && (
         <View style={{ alignItems: "center", paddingHorizontal: 32, paddingTop: 48, gap: 8 }}>
