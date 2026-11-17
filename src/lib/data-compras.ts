@@ -252,7 +252,7 @@ export async function loadOrderForm(profile: Profile) {
       supabase.from("suppliers").select("id, name, lead_time_days, lead_time_dry_days").eq("store_id", storeId).order("name"),
       supabase
         .from("products")
-        .select("id, name, category, storage, supplier_id, count_unit, purchase_unit, units_per_purchase, cost_per_purchase")
+        .select("id, name, category, storage, supplier_id, count_unit, purchase_unit, units_per_purchase, cost_per_purchase, position")
         .eq("store_id", storeId)
         .eq("active", true)
         .order("category")
@@ -270,6 +270,7 @@ export async function loadOrderForm(profile: Profile) {
         purchase_unit: string;
         units_per_purchase: number;
         cost_per_purchase: number;
+        position: number | null;
       }[]).map((x) => ({
         ...x,
         storage: x.storage === "seco" ? ("seco" as const) : ("gelado" as const),

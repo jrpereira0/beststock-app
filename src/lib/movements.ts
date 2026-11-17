@@ -9,6 +9,7 @@ export type MovementProduct = {
   count_unit: string;
   purchase_unit: string;
   units_per_purchase: number;
+  position?: number | null;
 };
 
 const parse = (raw: string | undefined) => {

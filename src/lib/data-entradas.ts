@@ -145,11 +145,11 @@ export async function loadInvoiceData(profile: Profile) {
   const storeId = profile.store.id;
   return cached(`beststock:nota:${storeId}`, async () => {
     const [products, links] = await Promise.all([
-      supabase.from("products").select("id, name, category, purchase_unit").eq("store_id", storeId).eq("active", true),
+      supabase.from("products").select("id, name, category, purchase_unit, position").eq("store_id", storeId).eq("active", true),
       supabase.from("invoice_item_links").select("issuer_id, item_code, product_id, packs_per_unit").eq("store_id", storeId),
     ]);
     return {
-      products: (check(products) ?? []) as { id: string; name: string; category: string; purchase_unit: string }[],
+      products: (check(products) ?? []) as { id: string; name: string; category: string; purchase_unit: string; position: number | null }[],
       links: ((check(links) ?? []) as { issuer_id: string; item_code: string; product_id: string; packs_per_unit: number }[]).map((l) => ({
         ...l,
         packs_per_unit: Number(l.packs_per_unit),

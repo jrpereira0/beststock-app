@@ -1,6 +1,7 @@
 // Inventário: lista, contagem fechada e reabrir (iguais a inventario/page.tsx, [id]/page.tsx e actions.ts do site).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Profile } from "./auth";
+import { compareProducts } from "./count-rules.ts";
 import { cached, check } from "./data";
 import { isNetworkError } from "./queue.ts";
 import { supabase } from "./supabase";
@@ -64,12 +65,12 @@ export async function loadClosedCount(profile: Profile, id: string, compareCateg
     ) as ClosedCount["inventory"] | null;
     if (!inv) throw new Error("Contagem não encontrada.");
     const [productsRes, itemsRes, latestRes, people] = await Promise.all([
-      supabase.from("products").select("id, name, category, count_unit, active").eq("store_id", storeId).order("name"),
+      supabase.from("products").select("id, name, category, count_unit, active, position").eq("store_id", storeId),
       supabase.from("inventory_items").select("product_id, quantity, stockout_on, counted_by, updated_at").eq("inventory_id", id),
       supabase.from("inventories").select("id").eq("store_id", storeId).order("counted_on", { ascending: false }).limit(1).maybeSingle(),
       loadPeople(storeId, profile.store.name),
     ]);
-    const products = (check(productsRes) ?? []) as { id: string; name: string; category: string; count_unit: string; active: boolean }[];
+    const products = ((check(productsRes) ?? []) as { id: string; name: string; category: string; count_unit: string; active: boolean; position: number | null }[]).sort(compareProducts);
     const items = (check(itemsRes) ?? []) as { product_id: string; quantity: number; stockout_on: string | null; counted_by: string | null; updated_at: string | null }[];
     const byProduct = new Map(items.map((i) => [i.product_id, i]));
     const showPeople = Object.keys(people).length > 1;

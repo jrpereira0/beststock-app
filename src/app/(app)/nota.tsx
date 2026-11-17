@@ -9,7 +9,7 @@ import { useProfile } from "@/lib/auth";
 import { checkInvoice, loadInvoiceData, rememberInvoiceLinks } from "@/lib/data-entradas";
 import { addDays, daysFrom, formatDate, formatQty, today } from "@/lib/dates";
 import { setInvoiceDraft } from "@/lib/invoice-draft";
-import { compareCategories } from "@/lib/site/category-order";
+import { compareProducts } from "@/lib/count-rules";
 import { bestMatch, parseInvoice, type Invoice } from "@/lib/site/invoice";
 import { colors } from "@/lib/theme";
 import { useLoad } from "@/lib/use-load";
@@ -41,7 +41,7 @@ export default function NotaScreen() {
   const products = useMemo(() => data?.products ?? [], [data]);
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const sorted = useMemo(
-    () => [...products].sort((a, b) => compareCategories(a.category, b.category) || a.name.localeCompare(b.name, "pt-BR")),
+    () => [...products].sort(compareProducts),
     [products],
   );
   const days = useMemo(() => daysFrom(addDays(now, -13), now).reverse(), [now]);

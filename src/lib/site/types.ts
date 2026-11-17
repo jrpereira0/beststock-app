@@ -94,6 +94,8 @@ export type ProductFields = {
   purchase_unit: string;
   units_per_purchase: number;
   shelf_life_days: number | null;
+  /** Posição na planilha da loja, dentro da categoria. Sem posição, fica no fim, em ordem alfabética. */
+  position?: number | null;
 };
 
 export type CatalogProduct = ProductFields & {

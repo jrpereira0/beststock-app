@@ -227,3 +227,17 @@ describe("pedido a caminho", () => {
     assert.equal(dueOutstanding(items, "2026-11-10"), 10);
   });
 });
+
+describe("ordem dos produtos", () => {
+  it("dentro da categoria vale a posição da planilha; sem posição, no fim em ordem alfabética", async () => {
+    const { groupProducts } = await import("../src/lib/count-rules.ts");
+    const potes = [
+      { id: "a", name: "Pote Açaí Tradicional 1,5 L", category: "Potes", count_unit: "un", position: 50 },
+      { id: "b", name: "Pote Pistache c/ Chocolate Branco 1,5 L", category: "Potes", count_unit: "un", position: 20 },
+      { id: "c", name: "Pote Açaí do Pará 1,5 L", category: "Potes", count_unit: "un", position: 10 },
+      { id: "d", name: "Pote Novo da Loja", category: "Potes", count_unit: "un", position: null },
+      { id: "e", name: "Pote Abacaxi da Loja", category: "Potes", count_unit: "un" },
+    ];
+    assert.deepEqual(groupProducts(potes)[0][1].map((p) => p.id), ["c", "b", "a", "e", "d"]);
+  });
+});

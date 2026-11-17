@@ -153,7 +153,7 @@ export async function loadCount(profile: Profile, inventoryId: string) {
     if (!inv) throw new Error("Contagem não encontrada.");
     const countedOn = inv.counted_on as string;
     const [productsRes, itemsRes, prevRes, sameDayRes] = await Promise.all([
-      supabase.from("products").select("id, name, category, count_unit, active").eq("store_id", storeId).order("category").order("name"),
+      supabase.from("products").select("id, name, category, count_unit, active, position").eq("store_id", storeId).order("category").order("name"),
       supabase.from("inventory_items").select("product_id, quantity, stockout_on").eq("inventory_id", inventoryId),
       supabase
         .from("inventories")
@@ -343,7 +343,7 @@ export async function loadMovementForm(profile: Profile, kind: Kind) {
     const [productsRes, countsRes, ordersRes] = await Promise.all([
       supabase
         .from("products")
-        .select("id, name, category, count_unit, purchase_unit, units_per_purchase")
+        .select("id, name, category, count_unit, purchase_unit, units_per_purchase, position")
         .eq("store_id", storeId)
         .eq("active", true)
         .order("category")

@@ -20,6 +20,8 @@ export type PlanProduct = {
   active: boolean;
   /** Item que para a loja se faltar: recebe a proteção da classe A, mesmo sendo barato. */
   essential?: boolean;
+  /** Posição na planilha da loja, dentro da categoria (ordem das telas e dos relatórios). */
+  position?: number | null;
 };
 export type PlanSupplier = {
   id: string;

@@ -1,4 +1,5 @@
 // Monta a lista de compras por fornecedor e tipo, igual a compras/page.tsx do site.
+import { compareProducts } from "./count-rules.ts";
 import { formatQty } from "./dates.ts";
 import type { StockPlan } from "./site/planning";
 
@@ -6,6 +7,7 @@ export type PurchaseRow = {
   id: string;
   name: string;
   category: string;
+  position: number | null;
   purchaseUnit: string;
   countUnit: string;
   perPack: number;
@@ -69,6 +71,7 @@ export function purchaseGroups(plan: StockPlan, interval: number): PurchaseGroup
       id: item.product.id,
       name: item.product.name,
       category: item.product.category,
+      position: item.product.position ?? null,
       purchaseUnit: item.product.purchase_unit,
       countUnit: item.product.count_unit,
       perPack: item.product.units_per_purchase,
@@ -89,7 +92,7 @@ export function purchaseGroups(plan: StockPlan, interval: number): PurchaseGroup
     if (none(a.key) !== none(b.key)) return none(a.key) ? 1 : -1;
     return a.supplier.localeCompare(b.supplier, "pt");
   });
-  for (const g of list) g.rows.sort((a, b) => Number(b.risk) - Number(a.risk) || a.name.localeCompare(b.name));
+  for (const g of list) g.rows.sort((a, b) => Number(b.risk) - Number(a.risk) || compareProducts(a, b));
   return list;
 }
 

@@ -1,7 +1,7 @@
 // Regras da contagem, iguais às do site (inventario/actions.ts e inventario/[id]/count-list.tsx).
 import { addDays, formatQty } from "./dates.ts";
 
-export type CountProduct = { id: string; name: string; category: string; count_unit: string };
+export type CountProduct = { id: string; name: string; category: string; count_unit: string; position?: number | null };
 
 /** Número sem nada para comparar (primeira contagem do produto) que provavelmente foi digitado errado. */
 export const HIGH_WITHOUT_HISTORY = 1000;
@@ -111,8 +111,19 @@ export function groupProducts<T extends CountProduct>(
     if (opts.keep && !opts.keep(p)) continue;
     groups.set(cat, [...(groups.get(cat) ?? []), p]);
   }
-  for (const list of groups.values()) list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  // Dentro da categoria, a ordem da planilha da loja; quem não tem posição vai para o fim, em ordem alfabética.
+  for (const list of groups.values()) list.sort(compareProducts);
   return [...groups].sort((a, b) => compareCategories(a[0], b[0]));
+}
+
+/** Mesma regra de compareProducts do site (lib/category-order.ts). */
+export function compareProducts(a: { name: string; category: string; position?: number | null }, b: { name: string; category: string; position?: number | null }) {
+  const byCategory = compareCategories(a.category || "Sem categoria", b.category || "Sem categoria");
+  if (byCategory !== 0) return byCategory;
+  const pa = a.position ?? Number.POSITIVE_INFINITY;
+  const pb = b.position ?? Number.POSITIVE_INFINITY;
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  return a.name.localeCompare(b.name, "pt-BR");
 }
 
 export function categoriesOf(products: CountProduct[]): string[] {

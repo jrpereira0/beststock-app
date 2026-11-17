@@ -19,3 +19,18 @@ export function compareCategories(a: string, b: string) {
   const byRank = rank(a) - rank(b);
   return byRank !== 0 ? byRank : a.localeCompare(b, "pt-BR");
 }
+
+type Sortable = { name: string; category: string; position?: number | null };
+
+/**
+ * Ordem dos produtos: categoria, depois a posição da planilha da loja (products.position, vinda da lista
+ * padrão) e, para quem não tem posição, o nome em ordem alfabética, no fim da categoria.
+ */
+export function compareProducts(a: Sortable, b: Sortable) {
+  const byCategory = compareCategories(a.category || "Sem categoria", b.category || "Sem categoria");
+  if (byCategory !== 0) return byCategory;
+  const pa = a.position ?? Number.POSITIVE_INFINITY;
+  const pb = b.position ?? Number.POSITIVE_INFINITY;
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  return a.name.localeCompare(b.name, "pt-BR");
+}
