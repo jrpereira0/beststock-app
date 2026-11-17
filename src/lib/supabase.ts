@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { processLock } from "@supabase/auth-js";
 import { createClient } from "@supabase/supabase-js";
 import { AppState, Platform } from "react-native";
 
@@ -15,7 +14,6 @@ export const supabase = createClient(url || "https://sem-configuracao.invalid", 
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    lock: processLock,
   },
 });
 
