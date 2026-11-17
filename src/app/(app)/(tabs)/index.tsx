@@ -165,6 +165,11 @@ export default function HomeScreen() {
         )}
         {error && <Notice tone="danger">{error}</Notice>}
 
+        {/* Na ordem: como o BestStock funciona, os números, a contagem do dia, o que pede atenção e os atalhos. */}
+        {profile.access === "gerente" && home && (!home.lastClosedOn || (plan && plan.inventoryCount < 2)) && <HowItWorks />}
+
+        {plan && profile.access === "gerente" && <Summary plan={plan} />}
+
         <View style={{ backgroundColor: colors.ink, borderRadius: 24, padding: 20, gap: 6 }}>
           <T weight="bold" size={13} color={colors.brand} style={{ textTransform: "uppercase", letterSpacing: 1 }}>
             {hero.kicker}
@@ -178,23 +183,6 @@ export default function HomeScreen() {
           )}
           <Button label={hero.cta} busy={opening} disabled={!home} onPress={() => void openCount()} style={{ marginTop: 12 }} />
         </View>
-
-        <View style={{ gap: 12 }}>
-          <SectionTitle>Atalhos</SectionTitle>
-          <ListLink icon="add-circle-outline" title="Registrar entrada" subtitle="Chegou mercadoria do fornecedor" onPress={() => router.push("/lancar?tipo=entrada")} />
-          <ListLink icon="remove-circle-outline" title="Registrar perda" subtitle="Produto venceu, quebrou ou estragou" onPress={() => router.push("/lancar?tipo=perda")} />
-          <ListLink icon="clipboard-outline" title="Inventário" subtitle="Contar o estoque e ver o histórico" onPress={() => router.navigate("/inventario")} />
-          {profile.access === "gerente" && (
-            <>
-              <ListLink icon="bar-chart-outline" title="Consumo" subtitle="O que mais sai e o que está parado" onPress={() => router.push("/consumo")} />
-              <ListLink icon="cube-outline" title="Produtos" subtitle="Cadastrar e editar produtos" onPress={() => router.push("/produtos")} />
-            </>
-          )}
-        </View>
-
-        {profile.access === "gerente" && home && (!home.lastClosedOn || (plan && plan.inventoryCount < 2)) && <HowItWorks />}
-
-        {plan && profile.access === "gerente" && <Summary plan={plan} />}
 
         {home && home.alerts.length > 0 && (
           <View style={{ gap: 12 }}>
@@ -215,6 +203,19 @@ export default function HomeScreen() {
             ))}
           </View>
         )}
+
+        <View style={{ gap: 12 }}>
+          <SectionTitle>Atalhos</SectionTitle>
+          <ListLink icon="add-circle-outline" title="Registrar entrada" subtitle="Chegou mercadoria do fornecedor" onPress={() => router.push("/lancar?tipo=entrada")} />
+          <ListLink icon="remove-circle-outline" title="Registrar perda" subtitle="Produto venceu, quebrou ou estragou" onPress={() => router.push("/lancar?tipo=perda")} />
+          <ListLink icon="clipboard-outline" title="Inventário" subtitle="Contar o estoque e ver o histórico" onPress={() => router.navigate("/inventario")} />
+          {profile.access === "gerente" && (
+            <>
+              <ListLink icon="bar-chart-outline" title="Consumo" subtitle="O que mais sai e o que está parado" onPress={() => router.push("/consumo")} />
+              <ListLink icon="cube-outline" title="Produtos" subtitle="Cadastrar e editar produtos" onPress={() => router.push("/produtos")} />
+            </>
+          )}
+        </View>
 
         <T size={14} color={colors.muted} style={{ textAlign: "center" }}>
           {profile.access === "gerente"
