@@ -122,36 +122,46 @@ export function columnName(index: number): string {
   return name;
 }
 
-// Estilos: 1 cabeçalho, 2 texto, 3 número, 4 dinheiro, 5 total em texto, 6 total em dinheiro, 7 total em número.
+// Estilos (índice em cellXfs):
+// 0 padrão · 1 cabeçalho (escuro) · 2 texto · 3 número · 4 dinheiro · 5 total em texto · 6 total em dinheiro
+// 7 total em número · 8 texto à direita · 9 cabeçalho à direita · 10 título · 11 subtítulo · 12 faixa do tipo
+// 13 a 16: texto, número, dinheiro e texto à direita nas linhas alternadas (fundo creme).
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.###"/><numFmt numFmtId="165" formatCode="&quot;R$&quot; #,##0.00"/></numFmts>
-<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills>
-<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>
+<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="16"/><color rgb="FF141414"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF5F5B53"/><name val="Calibri"/></font></fonts>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF141414"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE3A8"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF7F5F0"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD9D4C9"/></left><right style="thin"><color rgb="FFD9D4C9"/></right><top style="thin"><color rgb="FFD9D4C9"/></top><bottom style="thin"><color rgb="FFD9D4C9"/></bottom><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="10">
+<cellXfs count="17">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
-<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
-<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
-<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
 <xf numFmtId="165" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
 <xf numFmtId="164" fontId="1" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
-<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>
-<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="164" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="165" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="1" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
 
-function cellXml(ref: string, value: Cell, column: Column, total: boolean): string {
+function cellXml(ref: string, value: Cell, column: Column, total: boolean, zebra = false): string {
   const numeric = column.kind === "number" || column.kind === "money";
   if (typeof value === "number" && Number.isFinite(value)) {
-    const style = column.kind === "money" ? (total ? 6 : 4) : total ? 7 : 3;
+    const style = total ? (column.kind === "money" ? 6 : 7) : column.kind === "money" ? (zebra ? 15 : 4) : zebra ? 14 : 3;
     return `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
   }
-  const style = total ? 5 : numeric ? 3 : column.align === "right" ? 8 : 2;
+  const style = total ? 5 : numeric ? (zebra ? 14 : 3) : column.align === "right" ? (zebra ? 16 : 8) : zebra ? 13 : 2;
   if (value === null || value === "") return `<c r="${ref}" s="${style}"/>`;
   return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escape(String(value))}</t></is></c>`;
 }
@@ -172,37 +182,66 @@ export function withSeparators(report: Report): (Cell[] | null)[] {
   return out;
 }
 
+/** Os grupos do relatório, na ordem: o tipo e as linhas dele. Sem separação, um grupo só, sem nome. */
+function groupsOf(report: Report): [string, Cell[][]][] {
+  const out: [string, Cell[][]][] = [];
+  for (const row of report.rows) {
+    const key = report.separateBy === undefined ? "" : String(row[report.separateBy] ?? "");
+    const last = out.at(-1);
+    if (last && last[0] === key) last[1].push(row);
+    else out.push([key, [row]]);
+  }
+  return out;
+}
+
+// Alturas fixas, em pontos: título, subtítulo, espaço, cabeçalho e a faixa de cada tipo.
+const TITLE_PT = 26;
+const SUBTITLE_PT = 16;
+const GAP_PT = 8;
+const HEADER_PT = 22;
+const GROUP_PT = 20;
+/** Linha do cabeçalho da tabela: título, subtítulo e um espaço vêm antes. */
+const HEADER_ROW = 4;
+
 /**
  * Folhas certas no Excel: com a largura das colunas (em caracteres da fonte padrão) o Excel encolhe a
  * planilha para caber na largura da folha A4; com essa escala, escolhe o menor número de folhas e a
  * altura das linhas para encher as folhas por igual (a mesma ideia de lib/print-fit.ts para o PDF).
  */
-function fitXlsxPages(report: Report, widths: number[]) {
+function fitXlsxPages(report: Report, widths: number[], groups: number) {
   const pt = (mm: number) => Math.round(((mm * 72) / 25.4) * 10) / 10;
   // Largura da coluna em pontos: o Excel usa 7 px por caractere mais 5 px de folga, a 96 px por polegada.
   const tablePt = widths.reduce((sum, w) => sum + Math.trunc(w * 7 + 5), 0) * 0.75;
   const printWidth = (8.27 - 0.8) * 72;
   const printHeight = (11.69 - 1.0) * 72;
   const scale = Math.min(1, printWidth / tablePt);
-  const headerPt = 20;
-  const separatorPt = 10;
-  const separators = withSeparators(report).filter((line) => line === null).length;
   const rows = report.rows.length;
-  // Altura útil por folha, sem escala, descontando o cabeçalho que se repete e uma linha de folga.
-  const perPage = (minRow: number) => printHeight / scale - headerPt - minRow;
   // Mínima e máxima da linha já impressa: com a planilha encolhida, a linha no arquivo precisa ser mais alta.
   const minRow = pt(6.5) / scale;
   const maxRow = pt(11) / scale;
+  // Altura útil por folha, sem escala: o cabeçalho se repete, e uma linha e uma faixa de tipo de folga.
+  const perPage = (row: number) => printHeight / scale - HEADER_PT - row - GROUP_PT;
+  const fixed = TITLE_PT + SUBTITLE_PT + GAP_PT + groups * GROUP_PT;
   let pages = 1;
-  while (pages * perPage(minRow) < rows * minRow + separators * separatorPt) pages++;
-  const rowPt = Math.min(maxRow, Math.floor(((pages * perPage(maxRow) - separators * separatorPt) / rows) * 10) / 10);
-  return { pages, rowPt: Math.max(minRow, rowPt), headerPt, separatorPt };
+  while (pages * perPage(minRow) < fixed + rows * minRow) pages++;
+  const rowPt = Math.min(maxRow, Math.floor(((pages * perPage(maxRow) - fixed) / rows) * 10) / 10);
+  return { pages, rowPt: Math.max(minRow, rowPt) };
 }
 
+/**
+ * A planilha organizada como a folha impressa: título e loja no alto, cabeçalho escuro que fica parado ao
+ * rolar e se repete em cada folha impressa, uma faixa com o nome de cada tipo (AÇAÍ, SORVETES…) no lugar da
+ * coluna de tipo repetida, linhas alternadas e o total no fim.
+ */
 export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
-  const cols = report.columns;
-  const lines = withSeparators(report);
-  const widths = cols.map((c, i) => {
+  // O tipo vira a faixa de cada grupo: sai das colunas.
+  const shown = report.columns.map((_, i) => i).filter((i) => i !== report.separateBy);
+  const cols = shown.map((i) => report.columns[i]);
+  const groups = groupsOf(report);
+  const grouped = report.separateBy !== undefined;
+  const right = (c: Column) => c.kind === "number" || c.kind === "money" || c.align === "right";
+  const widths = shown.map((i) => {
+    const c = report.columns[i];
     let longest = c.label.length;
     for (const row of report.rows) {
       const v = row[i];
@@ -213,33 +252,53 @@ export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
   });
 
   // Planilha para escrever à mão: altura das linhas e número de folhas (A4 em pé) para as folhas saírem cheias.
-  const fit = report.handwritten ? fitXlsxPages(report, widths) : null;
+  const fit = report.handwritten ? fitXlsxPages(report, widths, grouped ? groups.length : 0) : null;
   const ht = (pt: number | undefined) => (pt ? ` ht="${pt}" customHeight="1"` : "");
-
+  const last = columnName(cols.length - 1);
+  const merges: string[] = [];
   const rowsXml: string[] = [];
-  let r = 1;
+  const text = (ref: string, style: number, value: string) =>
+    `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escape(value)}</t></is></c>`;
+
+  rowsXml.push(`<row r="1"${ht(TITLE_PT)}>${text("A1", 10, report.title)}</row>`);
+  rowsXml.push(`<row r="2"${ht(SUBTITLE_PT)}>${text("A2", 11, report.subtitle)}</row>`);
+  rowsXml.push(`<row r="3"${ht(GAP_PT)}/>`);
   rowsXml.push(
-    `<row r="${r}"${ht(fit?.headerPt)}>${cols.map((c, i) => `<c r="${columnName(i)}${r}" s="${c.align === "right" ? 9 : 1}" t="inlineStr"><is><t>${escape(c.label)}</t></is></c>`).join("")}</row>`,
+    `<row r="${HEADER_ROW}"${ht(HEADER_PT)}>${cols.map((c, i) => text(`${columnName(i)}${HEADER_ROW}`, right(c) ? 9 : 1, c.label)).join("")}</row>`,
   );
-  for (const line of lines) {
-    r++;
-    if (!line) {
-      rowsXml.push(`<row r="${r}"${ht(fit?.separatorPt)}/>`);
-      continue;
+  let r = HEADER_ROW;
+  for (const [group, rows] of groups) {
+    if (grouped) {
+      r++;
+      // A faixa do tipo ocupa a largura da tabela (células juntas).
+      rowsXml.push(
+        `<row r="${r}"${ht(GROUP_PT)}>${cols.map((_, i) => (i === 0 ? text(`A${r}`, 12, group) : `<c r="${columnName(i)}${r}" s="12"/>`)).join("")}</row>`,
+      );
+      if (cols.length > 1) merges.push(`A${r}:${last}${r}`);
     }
-    rowsXml.push(`<row r="${r}"${ht(fit?.rowPt)}>${line.map((v, i) => cellXml(`${columnName(i)}${r}`, v, cols[i], false)).join("")}</row>`);
+    rows.forEach((row, n) => {
+      r++;
+      rowsXml.push(
+        `<row r="${r}"${ht(fit?.rowPt)}>${shown.map((i, k) => cellXml(`${columnName(k)}${r}`, row[i], report.columns[i], false, n % 2 === 1)).join("")}</row>`,
+      );
+    });
   }
   if (report.total) {
     r++;
-    rowsXml.push(`<row r="${r}">${report.total.map((v, i) => cellXml(`${columnName(i)}${r}`, v, cols[i], true)).join("")}</row>`);
+    rowsXml.push(
+      `<row r="${r}">${shown
+        .map((i, k) => cellXml(`${columnName(k)}${r}`, k === 0 && grouped ? report.total![report.separateBy!] : report.total![i], report.columns[i], true))
+        .join("")}</row>`,
+    );
   }
 
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
-<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${HEADER_ROW}" topLeftCell="A${HEADER_ROW + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>
 <sheetData>${rowsXml.join("")}</sheetData>
+${merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join("")}</mergeCells>` : ""}
 <pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
 <pageSetup paperSize="9" orientation="${orientationOf(report)}" fitToWidth="1" fitToHeight="${fit?.pages ?? 0}"/>
 </worksheet>`;
@@ -259,8 +318,8 @@ export function toXlsx(report: Report): Uint8Array<ArrayBuffer> {
       name: "xl/workbook.xml",
       data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escape(sheetName(report.sheet))}" sheetId="1" r:id="rId1"/></sheets>${
-        // O cabeçalho (primeira linha) se repete no alto de cada folha impressa.
-        fit ? `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${escape(sheetName(report.sheet).replace(/'/g, "''"))}'!$1:$1</definedName></definedNames>` : ""
+        // O cabeçalho da tabela se repete no alto de cada folha impressa.
+        `<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${escape(sheetName(report.sheet).replace(/'/g, "''"))}'!$${HEADER_ROW}:$${HEADER_ROW}</definedName></definedNames>`
       }</workbook>`,
     },
     {
