@@ -20,6 +20,8 @@ const files = [
   "xlsx.ts",
   "print-fit.ts",
   "movement-edit.ts",
+  "select-all.ts",
+  "admin-alerts.ts",
 ];
 // O tipo Alert do site mora em notifications.ts, que depende do servidor: no app ele fica em src/lib/alert.ts.
 const rewrite = (text) => text.replace('from "./notifications"', 'from "../alert"');

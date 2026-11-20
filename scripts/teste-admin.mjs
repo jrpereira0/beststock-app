@@ -95,6 +95,20 @@ try {
   );
   check("liga a cobrança de novo", on.status === 200 && /Cobrança/.test(on.body.ok ?? ""), JSON.stringify(on.body));
 
+  // Contas da rede no banco (valem com qualquer número de unidades).
+  const sm = await db.rpc("admin_summary");
+  check("resumo da rede conta a unidade de teste", !sm.error && sm.data.stores.total >= 1 && typeof sm.data.payments.open_amount === "number", sm.error?.message);
+  const found = await db.rpc("admin_store_page", { p_filter: "todas", p_search: `TESTE UI Unidade ${tag}`, p_offset: 0, p_limit: 50 });
+  check("busca de unidade acha só a de teste", found.data?.total === 1 && found.data.rows[0]?.id === storeId, JSON.stringify(found.data ?? found.error));
+  const page1 = await db.rpc("admin_store_page", { p_filter: "todas", p_search: "", p_offset: 0, p_limit: 1 });
+  check("lista de unidades vem em páginas", page1.data?.rows.length === 1 && page1.data.total >= 2, JSON.stringify(page1.error));
+  const pays = await db.rpc("admin_payment_page", { p_filter: "todas", p_month: null, p_offset: 0, p_limit: 5 });
+  check("cobranças em páginas com os totais", !pays.error && pays.data.rows.length <= 5 && pays.data.totals.todas.count >= pays.data.rows.length, pays.error?.message);
+  const al = await db.rpc("admin_alerts", { p_limit: 5 });
+  check("avisos do administrador vêm do banco", !al.error && Array.isArray(al.data.items) && al.data.items.length <= 5, al.error?.message);
+  const staffSm = await createClient(url, key, opts).rpc("admin_summary");
+  check("sem login não vê o resumo da rede", Boolean(staffSm.error));
+
   // Cadastro, anotação e bloqueio.
   const upd = await db.from("stores").update({ city: "Teste 2" }).eq("id", storeId);
   const notes = await db.from("store_admin_notes").upsert({ store_id: storeId, notes: "nova" }, { onConflict: "store_id" });

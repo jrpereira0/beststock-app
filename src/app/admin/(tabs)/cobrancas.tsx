@@ -1,14 +1,14 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { BillingGuide } from "@/components/guide";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { PaymentList } from "@/components/admin-payments";
 import { NewPayment } from "@/components/new-payment";
 import { Button, Card, Field, Notice, SectionTitle, T } from "@/components/ui";
 import { ListLink, Page, Stat } from "@/components/widgets";
-import { loadBilling, saveBillingSettings, type PaymentRow } from "@/lib/data-admin";
+import { loadBilling, saveBillingSettings } from "@/lib/data-admin";
 import { formatDate, today } from "@/lib/dates";
-import { addMonths, brl, monthLabel, nextChargeDate, planPrice, planTitle, situation } from "@/lib/site/billing";
+import { addMonths, brl, monthLabel, nextChargeDate, planPrice, planTitle } from "@/lib/site/billing";
 import { colors } from "@/lib/theme";
 import { useLoad } from "@/lib/use-load";
 
@@ -21,6 +21,9 @@ const FILTERS = [
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const PAGE = 50;
+/** Com muitas unidades, só as próximas cobranças automáticas; o resto fica na tela de cada unidade. */
+const UPCOMING = 20;
 
 /** Cobranças da rede, como admin/cobrancas do site. */
 export default function CobrancasScreen() {
@@ -33,18 +36,34 @@ export default function CobrancasScreen() {
   }
   const [month, setMonth] = useState("");
   const [creating, setCreating] = useState(false);
-  const { data, fromCache, error, refreshing, refresh, reload } = useLoad(loadBilling);
+  // O banco filtra, soma e devolve só as primeiras cobranças (admin_payment_page); "Mostrar mais" pede mais.
+  const [limit, setLimit] = useState(PAGE);
+  const load = useCallback(() => loadBilling(filter, month, limit), [filter, month, limit]);
+  const { data, fromCache, error, refreshing, refresh, reload } = useLoad(load);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    void reload();
+  }, [load, reload]);
   const now = today();
   const thisMonth = now.slice(0, 7);
 
-  const all = useMemo(() => (data?.payments ?? []).filter((p) => !month || p.reference_month.slice(0, 7) === month), [data, month]);
-  const is = (p: PaymentRow, key: FilterKey) =>
-    key === "aberto" ? p.status === "pendente" : key === "atraso" ? situation(p, now) === "atrasado" : key === "pago" ? p.status === "pago" : key === "cancelado" ? p.status === "cancelado" : true;
-  const of = (key: FilterKey) => all.filter((p) => is(p, key));
-  const sum = (key: FilterKey) => of(key).reduce((a, p) => a + Number(p.amount), 0);
-  const visible = of(filter);
-  if (filter === "aberto" || filter === "atraso") visible.reverse();
+  const zero = { count: 0, amount: 0 };
+  const tot = (key: FilterKey) => data?.totals?.[key] ?? zero;
+  const sum = (key: FilterKey) => Number(tot(key).amount);
+  const visible = data?.payments ?? [];
   const current = FILTERS.find((x) => x.key === filter)!;
+  const choose = (k: FilterKey) => {
+    setFilter(k);
+    setLimit(PAGE);
+  };
+  const chooseMonth = (m: string) => {
+    setMonth(m);
+    setLimit(PAGE);
+  };
   const planById = new Map((data?.plans ?? []).map((p) => [p.id, p]));
   const upcoming = (data?.stores ?? [])
     .flatMap((u) => {
@@ -75,36 +94,36 @@ export default function CobrancasScreen() {
             plans={data.plans.filter((p) => p.active).length}
             units={data.stores.length}
             billed={upcoming.length}
-            open={(data.payments ?? []).filter((p) => p.status === "pendente").length}
+            open={tot("aberto").count}
           />
           <SectionTitle>{month ? `Resumo de ${monthLabel(`${month}-01`)}` : "Resumo"}</SectionTitle>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             <Stat
               label="Para receber"
               value={brl.format(sum("aberto"))}
-              hint={of("aberto").length ? count(of("aberto").length, "cobrança sem pagamento", "cobranças sem pagamento") : "Nada pendente"}
-              onPress={() => setFilter("aberto")}
+              hint={tot("aberto").count ? count(tot("aberto").count, "cobrança sem pagamento", "cobranças sem pagamento") : "Nada pendente"}
+              onPress={() => choose("aberto")}
             />
             <Stat
               label="Em atraso"
               value={brl.format(sum("atraso"))}
               tone={sum("atraso") > 0 ? "danger" : "ok"}
-              hint={of("atraso").length ? count(of("atraso").length, "cobrança vencida", "cobranças vencidas") : "Nenhuma vencida"}
-              onPress={() => setFilter("atraso")}
+              hint={tot("atraso").count ? count(tot("atraso").count, "cobrança vencida", "cobranças vencidas") : "Nenhuma vencida"}
+              onPress={() => choose("atraso")}
             />
-            <Stat label="Já recebido" value={brl.format(sum("pago"))} tone="ok" hint={count(of("pago").length, "pagamento registrado", "pagamentos registrados")} onPress={() => setFilter("pago")} />
+            <Stat label="Já recebido" value={brl.format(sum("pago"))} tone="ok" hint={count(tot("pago").count, "pagamento registrado", "pagamentos registrados")} onPress={() => choose("pago")} />
           </View>
 
           <SectionTitle>Cobranças</SectionTitle>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {FILTERS.map((x) => (
-              <Chip key={x.key} active={filter === x.key} label={`${x.label} ${of(x.key).length}`} onPress={() => setFilter(x.key)} />
+              <Chip key={x.key} active={filter === x.key} label={`${x.label} ${tot(x.key).count}`} onPress={() => choose(x.key)} />
             ))}
           </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            <Chip active={month === ""} label="Todos os meses" onPress={() => setMonth("")} />
+            <Chip active={month === ""} label="Todos os meses" onPress={() => chooseMonth("")} />
             {months.map((m) => (
-              <Chip key={m} active={month === m} label={monthLabel(`${m}-01`)} onPress={() => setMonth(m)} />
+              <Chip key={m} active={month === m} label={monthLabel(`${m}-01`)} onPress={() => chooseMonth(m)} />
             ))}
           </ScrollView>
           <T size={14} color={colors.muted}>{current.about}</T>
@@ -121,6 +140,9 @@ export default function CobrancasScreen() {
           ) : (
             <PaymentList payments={visible} admin onChange={() => void reload()} />
           )}
+          {data.total > visible.length && (
+            <Button label={`Mostrar mais (${visible.length} de ${data.total})`} variant="secondary" onPress={() => setLimit((n) => n + PAGE)} />
+          )}
 
           <SectionTitle>Próximas cobranças automáticas</SectionTitle>
           <T size={14} color={colors.muted}>O que o sistema vai criar sozinho, pelo plano de cada unidade. Para mudar o plano ou o vencimento, abra a unidade.</T>
@@ -129,7 +151,7 @@ export default function CobrancasScreen() {
               <T color={colors.muted}>Nenhuma unidade tem plano com cobrança ligada.</T>
             </Card>
           ) : (
-            upcoming.map(({ unit, plan, date }) => (
+            upcoming.slice(0, UPCOMING).map(({ unit, plan, date }) => (
               <ListLink
                 key={unit.id}
                 title={unit.name}
@@ -143,6 +165,10 @@ export default function CobrancasScreen() {
                 }
               />
             ))
+          )}
+
+          {upcoming.length > UPCOMING && (
+            <T size={14} color={colors.muted}>E mais {upcoming.length - UPCOMING} unidades com cobrança automática. Veja cada uma em Unidades.</T>
           )}
 
           <SectionTitle>Como as unidades pagam</SectionTitle>

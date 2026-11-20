@@ -3,11 +3,13 @@
 // banco (as regras por linha liberam tudo para ele); criar unidade e mudar a cobrança passam pela rota
 // do site (api/app/admin), que usa as mesmas regras do site.
 import type { Alert } from "./alert";
+import { buildAdminAlerts, type AdminAlertsResult } from "./site/admin-alerts";
+import { selectAll } from "./site/select-all";
 import { cached, check } from "./data";
-import { daysBetween, formatDate, isIsoDate, today } from "./dates";
+import { isIsoDate, today } from "./dates";
 import { isNetworkError } from "./queue.ts";
 import { callSite } from "./site-api";
-import { brl, dueText, firstOfMonth, isPaymentMethod, monthLabel, situation } from "./site/billing";
+import { firstOfMonth, isPaymentMethod } from "./site/billing";
 import { NETWORK_SUPPLIER } from "./site/network";
 import type { Announcement, CatalogProduct, Payment, PaymentMethod, Plan, Store } from "./site/types";
 import { supabase } from "./supabase";
@@ -22,77 +24,31 @@ async function run(fn: () => Promise<string | null>): Promise<string | null> {
   }
 }
 
-/** Garante as cobranças dos planos até o mês atual (a função do banco nunca duplica). */
-const ensureCharges = () => supabase.rpc("generate_due_charges");
+// As cobranças dos planos o banco gera de madrugada (pg_cron); criar unidade e mudar a cobrança geram na hora.
+// Contas sobre todas as unidades ficam no banco (admin_summary, admin_store_page, admin_alerts,
+// admin_payment_page): a API devolve no máximo 1000 linhas por busca, e a rede pode ter mais unidades.
+
+/** Números da rede, iguais aos do site (admin/painel). */
+export type AdminSummary = {
+  stores: { total: number; active: number; blocked: number; unbilled: number; overdue: number };
+  payments: { open_count: number; open_amount: number; overdue_count: number; overdue_amount: number; paid_month_count: number; paid_month_amount: number };
+  plans: Record<string, number>;
+  leads_open: number;
+};
+
+async function summary(): Promise<AdminSummary> {
+  const res = await supabase.rpc("admin_summary");
+  return check(res) as AdminSummary;
+}
 
 // ---------------- Notificações do administrador ----------------
 
 export async function computeAdminAlerts(): Promise<Alert[]> {
-  await ensureCharges();
-  const now = today();
-  const [storeRes, payRes, invRes, leadRes] = await Promise.all([
-    supabase.from("stores").select("*").order("name"),
-    supabase.from("payments").select("id, store_id, reference_month, description, amount, due_date, status").eq("status", "pendente").order("due_date"),
-    supabase.from("inventories").select("store_id, counted_on").eq("status", "closed").order("counted_on", { ascending: false }).limit(1000),
+  const [alertRes, leadRes] = await Promise.all([
+    supabase.rpc("admin_alerts", { p_limit: 100 }),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("handled", false),
   ]);
-  const stores = (check(storeRes) ?? []) as Store[];
-  const byId = new Map(stores.map((s) => [s.id, s]));
-  const alerts: Alert[] = [];
-  const leads = leadRes.count ?? 0;
-  if (leads > 0) {
-    alerts.push({
-      id: "leads-open",
-      tone: "warn",
-      title: leads === 1 ? "1 pedido de demonstração para responder" : `${leads} pedidos de demonstração para responder`,
-      text: "Veio da página de apresentação do sistema.",
-      href: "/admin/contatos",
-    });
-  }
-  for (const p of (check(payRes) ?? []) as Payment[]) {
-    const s = situation(p, now);
-    if (s !== "atrasado" && s !== "vence_logo") continue;
-    const store = byId.get(p.store_id);
-    alerts.push({
-      id: `pay-${p.id}`,
-      tone: s === "atrasado" ? "danger" : "warn",
-      title: `${store?.name ?? "Unidade"}: ${p.description.toLowerCase()} de ${monthLabel(p.reference_month)} ${s === "atrasado" ? "em atraso" : "perto de vencer"}`,
-      text: `${brl.format(Number(p.amount))}, ${dueText(p.due_date, now)}.`,
-      href: `/admin/lojas/${p.store_id}`,
-    });
-  }
-  const lastCount = new Map<string, string>();
-  for (const inv of (check(invRes) ?? []) as { store_id: string; counted_on: string }[]) {
-    if (!lastCount.has(inv.store_id)) lastCount.set(inv.store_id, inv.counted_on);
-  }
-  for (const s of stores) {
-    if (!s.active) {
-      alerts.push({ id: `blocked-${s.id}`, tone: "info", title: `${s.name} está bloqueada`, text: s.blocked_reason ? `Motivo: ${s.blocked_reason}` : undefined, href: `/admin/lojas/${s.id}` });
-      continue;
-    }
-    if (!s.billing_active) {
-      alerts.push({
-        id: `nobilling-${s.id}`,
-        tone: "warn",
-        title: `${s.name} está sem cobrança`,
-        text: "A unidade entra no sistema, mas o plano não gera cobrança.",
-        href: `/admin/lojas/${s.id}?aba=plano`,
-      });
-    }
-    const last = lastCount.get(s.id);
-    const since = daysBetween(last ?? s.created_at.slice(0, 10), now);
-    if (since > s.count_interval_days * 2) {
-      alerts.push({
-        id: `nocount-${s.id}`,
-        tone: "warn",
-        title: `${s.name} está sem contar o estoque`,
-        text: last ? `Última contagem em ${formatDate(last)}, há ${since} dias.` : `Nenhuma contagem em ${since} dias.`,
-        href: `/admin/lojas/${s.id}`,
-      });
-    }
-  }
-  const order = { danger: 0, warn: 1, info: 2 };
-  return alerts.sort((a, b) => order[a.tone] - order[b.tone]);
+  return buildAdminAlerts(check(alertRes) as AdminAlertsResult, leadRes.count ?? 0, today());
 }
 
 export const loadAdminAlerts = () => cached("beststock:admin:alertas", computeAdminAlerts);
@@ -103,36 +59,34 @@ export type PaymentRow = Payment & { storeName?: string };
 
 export async function loadPanel() {
   return cached("beststock:admin:painel", async () => {
-    const alerts = await computeAdminAlerts();
-    const [storeRes, openRes, paidRes] = await Promise.all([
-      supabase.from("stores").select("id, name, active, billing_active"),
-      supabase.from("payments").select("*").eq("status", "pendente"),
-      supabase.from("payments").select("*").eq("status", "pago").order("paid_on", { ascending: false }).limit(200),
+    const [alerts, sm, paidRes] = await Promise.all([
+      computeAdminAlerts(),
+      summary(),
+      supabase.from("payments").select("*, stores(name)").eq("status", "pago").order("paid_on", { ascending: false }).limit(6),
     ]);
-    return {
-      stores: (check(storeRes) ?? []) as Pick<Store, "id" | "name" | "active" | "billing_active">[],
-      open: (check(openRes) ?? []) as Payment[],
-      paid: (check(paidRes) ?? []) as Payment[],
-      alerts,
-    };
+    const recent = ((check(paidRes) ?? []) as (Payment & { stores: { name: string } | null })[]).map(
+      ({ stores, ...p }): PaymentRow => ({ ...p, storeName: stores?.name }),
+    );
+    return { summary: sm, recent, alerts };
   });
 }
 
 // ---------------- Unidades ----------------
 
-export async function loadStores() {
-  return cached("beststock:admin:lojas", async () => {
-    await ensureCharges();
-    const [storeRes, payRes, planRes] = await Promise.all([
-      supabase.from("stores").select("*").order("name"),
-      supabase.from("payments").select("store_id, amount, due_date, status").eq("status", "pendente"),
+export type StoreFilter = "todas" | "ativas" | "sem-cobranca" | "atraso" | "bloqueadas";
+export type StoreListRow = Store & { overdue_amount: number };
+
+/** Uma página da lista de unidades (as primeiras `limit`), com filtro e busca, e os totais de cada filtro. */
+export async function loadStores(filter: StoreFilter = "todas", search = "", limit = 50) {
+  const q = search.trim().slice(0, 80);
+  return cached(`beststock:admin:lojas:${filter}:${q}:${limit}`, async () => {
+    const [sm, pageRes, planRes] = await Promise.all([
+      summary(),
+      supabase.rpc("admin_store_page", { p_filter: filter, p_search: q, p_offset: 0, p_limit: limit }),
       supabase.from("plans").select("*"),
     ]);
-    return {
-      stores: (check(storeRes) ?? []) as Store[],
-      pending: (check(payRes) ?? []) as Pick<Payment, "store_id" | "amount" | "due_date" | "status">[],
-      plans: (check(planRes) ?? []) as Plan[],
-    };
+    const page = check(pageRes) as { total: number; rows: StoreListRow[] };
+    return { counts: sm.stores, total: page.total, stores: page.rows, plans: (check(planRes) ?? []) as Plan[] };
   });
 }
 
@@ -149,7 +103,6 @@ export type StoreDetail = {
 
 export async function loadStore(id: string) {
   return cached(`beststock:admin:loja:${id}`, async (): Promise<StoreDetail> => {
-    await ensureCharges();
     const [storeRes, loginRes, productsRes, lastInvRes, payRes, planRes, notesRes] = await Promise.all([
       supabase.from("stores").select("*").eq("id", id).maybeSingle(),
       supabase.from("profiles").select("id, name, email, access").eq("store_id", id).order("created_at"),
@@ -251,19 +204,26 @@ export async function updateBilling(id: string, f: BillingInput) {
 
 // ---------------- Cobranças ----------------
 
-export async function loadBilling() {
-  return cached("beststock:admin:cobrancas", async () => {
-    await ensureCharges();
-    const [payRes, storeRes, planRes, settingsRes] = await Promise.all([
-      supabase.from("payments").select("*").order("due_date", { ascending: false }).limit(500),
-      supabase.from("stores").select("id, name, billing_active, billing_start, due_day, plan_id").order("name"),
+export type BillingFilter = "aberto" | "atraso" | "pago" | "cancelado" | "todas";
+type Totals = Record<BillingFilter, { count: number; amount: number }>;
+export type BillingUnit = Pick<Store, "id" | "name" | "billing_active" | "billing_start" | "due_day" | "plan_id">;
+
+/** Cobranças de um filtro (as primeiras `limit`), os totais de cada situação e as unidades (em partes de 1000). */
+export async function loadBilling(filter: BillingFilter = "aberto", month = "", limit = 50) {
+  return cached(`beststock:admin:cobrancas:${filter}:${month}:${limit}`, async () => {
+    const [payRes, stores, planRes, settingsRes] = await Promise.all([
+      supabase.rpc("admin_payment_page", { p_filter: filter, p_month: month ? `${month}-01` : null, p_offset: 0, p_limit: limit }),
+      selectAll<BillingUnit>((from, to) =>
+        supabase.from("stores").select("id, name, billing_active, billing_start, due_day, plan_id").order("name").order("id").range(from, to),
+      ),
       supabase.from("plans").select("*"),
       supabase.from("billing_settings").select("pix_key, instructions").maybeSingle(),
     ]);
-    const stores = (check(storeRes) ?? []) as Pick<Store, "id" | "name" | "billing_active" | "billing_start" | "due_day" | "plan_id">[];
-    const names = new Map(stores.map((s) => [s.id, s.name]));
+    const page = check(payRes) as { total: number; totals: Totals; rows: (Payment & { store_name: string })[] };
     return {
-      payments: ((check(payRes) ?? []) as Payment[]).map((p): PaymentRow => ({ ...p, storeName: names.get(p.store_id) })),
+      payments: page.rows.map(({ store_name, ...p }): PaymentRow => ({ ...p, storeName: store_name })),
+      total: page.total,
+      totals: page.totals,
       stores,
       plans: (check(planRes) ?? []) as Plan[],
       settings: (settingsRes.data ?? { pix_key: "", instructions: "" }) as { pix_key: string | null; instructions: string | null },
@@ -325,13 +285,12 @@ export async function saveBillingSettings(pixKey: string, instructions: string):
 
 export async function loadPlans() {
   return cached("beststock:admin:planos", async () => {
-    const [planRes, storeRes] = await Promise.all([
+    const [planRes, sm] = await Promise.all([
       supabase.from("plans").select("*").order("active", { ascending: false }).order("price"),
-      supabase.from("stores").select("plan_id"),
+      summary(),
     ]);
-    const units: Record<string, number> = {};
-    for (const s of (check(storeRes) ?? []) as { plan_id: string | null }[]) if (s.plan_id) units[s.plan_id] = (units[s.plan_id] ?? 0) + 1;
-    return { plans: (check(planRes) ?? []) as Plan[], units };
+    // Unidades em cada plano, contadas no banco.
+    return { plans: (check(planRes) ?? []) as Plan[], units: sm.plans ?? {} };
   });
 }
 
@@ -407,17 +366,9 @@ export async function saveCatalogProduct(id: string | null, row: CatalogRow, add
     const { data: created, error } = await supabase.from("catalog_products").insert(row).select("id").single();
     if (error || !created) return error ? fail(error, "Não foi possível salvar o item.") : "Não foi possível salvar o item.";
     if (addToStores) {
-      const [{ data: stores }, { data: networks }] = await Promise.all([
-        supabase.from("stores").select("id"),
-        supabase.from("suppliers").select("id, store_id").eq("name", NETWORK_SUPPLIER.name),
-      ]);
-      const supplierOf = new Map((networks ?? []).map((s) => [s.store_id as string, s.id as string]));
-      if (stores?.length) {
-        const { error: addError } = await supabase
-          .from("products")
-          .insert(stores.map((s) => ({ ...row, store_id: s.id, catalog_product_id: created.id, supplier_id: supplierOf.get(s.id) ?? null })));
-        if (addError) return "O item entrou na lista padrão, mas não nas lojas. Tente adicionar de novo pela loja.";
-      }
+      // Numa operação só, com qualquer número de lojas (como no site).
+      const { error: addError } = await supabase.rpc("add_catalog_product_to_stores", { p_catalog: created.id, p_supplier_name: NETWORK_SUPPLIER.name });
+      if (addError) return "O item entrou na lista padrão, mas não nas lojas. Tente adicionar de novo pela loja.";
     }
     return null;
   });
@@ -434,18 +385,17 @@ export async function deleteCatalogProduct(id: string): Promise<string | null> {
 
 export async function loadAnnouncements() {
   return cached("beststock:admin:avisos", async () => {
-    const [annRes, storeRes, readRes] = await Promise.all([
+    const [annRes, stores, sm] = await Promise.all([
       supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("stores").select("id, name, active").order("name"),
-      supabase.from("announcement_reads").select("announcement_id"),
+      // Todas as unidades para o "Para quem" (em partes de 1000).
+      selectAll<{ id: string; name: string; active: boolean }>((from, to) => supabase.from("stores").select("id, name, active").order("name").order("id").range(from, to)),
+      summary(),
     ]);
-    const reads: Record<string, number> = {};
-    for (const r of (check(readRes) ?? []) as { announcement_id: string }[]) reads[r.announcement_id] = (reads[r.announcement_id] ?? 0) + 1;
-    return {
-      announcements: (check(annRes) ?? []) as Announcement[],
-      stores: (check(storeRes) ?? []) as { id: string; name: string; active: boolean }[],
-      reads,
-    };
+    const announcements = (check(annRes) ?? []) as Announcement[];
+    // Quantas unidades leram cada aviso, contado no banco.
+    const readRes = announcements.length ? await supabase.rpc("announcement_read_counts", { p_ids: announcements.map((a) => a.id) }) : { data: {}, error: null };
+    const reads = (readRes.data ?? {}) as Record<string, number>;
+    return { announcements, stores, reads, activeCount: sm.stores.active };
   });
 }
 

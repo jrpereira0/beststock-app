@@ -10,8 +10,7 @@ import { Page, Stat } from "@/components/widgets";
 import { useAdminAlerts } from "@/lib/admin-alerts";
 import { loadPanel, type PaymentRow } from "@/lib/data-admin";
 import { today } from "@/lib/dates";
-import { brl, firstOfMonth, monthLabel, semCobranca, situation } from "@/lib/site/billing";
-import type { Payment } from "@/lib/site/types";
+import { brl, firstOfMonth, monthLabel } from "@/lib/site/billing";
 import { colors } from "@/lib/theme";
 import { useLoad } from "@/lib/use-load";
 
@@ -29,16 +28,12 @@ export default function PainelScreen() {
   const now = today();
   const month = firstOfMonth(now);
 
-  const stores = data?.stores ?? [];
-  const open = data?.open ?? [];
-  const paid = data?.paid ?? [];
-  const names = new Map(stores.map((s) => [s.id, s.name]));
-  const overdue = open.filter((p) => situation(p, now) === "atrasado");
-  const unbilled = stores.filter((s) => semCobranca(s));
-  const sum = (list: Payment[]) => list.reduce((a, p) => a + Number(p.amount), 0);
-  const received = paid.filter((p) => p.paid_on && firstOfMonth(p.paid_on) === month);
-  const recent: PaymentRow[] = paid.slice(0, 6).map((p) => ({ ...p, storeName: names.get(p.store_id) }));
+  // Os números vêm prontos do banco (admin_summary), valendo com qualquer número de unidades.
+  const st = data?.summary.stores ?? { total: 0, active: 0, blocked: 0, unbilled: 0, overdue: 0 };
+  const pay = data?.summary.payments;
+  const recent: PaymentRow[] = data?.recent ?? [];
   const alerts = data?.alerts ?? [];
+  const charges = (n: number) => `${n} ${n === 1 ? "cobrança" : "cobranças"}`;
 
   return (
     <Page
@@ -53,22 +48,22 @@ export default function PainelScreen() {
       skeleton="dashboard"
     >
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-        <Stat label="Unidades ativas" value={stores.filter((s) => s.active).length} onPress={() => router.push("/admin/lojas?f=ativas")} />
-        <Stat label="Bloqueadas" value={stores.filter((s) => !s.active).length} onPress={() => router.push("/admin/lojas?f=bloqueadas")} />
+        <Stat label="Unidades ativas" value={st.active} onPress={() => router.push("/admin/lojas?f=ativas")} />
+        <Stat label="Bloqueadas" value={st.blocked} onPress={() => router.push("/admin/lojas?f=bloqueadas")} />
         <Stat
           label="Sem cobrança"
-          value={unbilled.length}
-          tone={unbilled.length > 0 ? "warn" : "neutral"}
-          hint={unbilled.length === 1 ? "unidade ativa" : "unidades ativas"}
+          value={st.unbilled}
+          tone={st.unbilled > 0 ? "warn" : "neutral"}
+          hint={st.unbilled === 1 ? "unidade ativa" : "unidades ativas"}
           onPress={() => router.push("/admin/lojas?f=sem-cobranca")}
         />
-        <Stat label={`Recebido em ${monthLabel(month)}`} value={brl.format(sum(received))} tone="ok" onPress={() => router.push("/admin/cobrancas?s=pago")} />
-        <Stat label="A receber" value={brl.format(sum(open))} hint={`${open.length} ${open.length === 1 ? "cobrança" : "cobranças"}`} onPress={() => router.push("/admin/cobrancas?s=aberto")} />
+        <Stat label={`Recebido em ${monthLabel(month)}`} value={brl.format(Number(pay?.paid_month_amount ?? 0))} tone="ok" onPress={() => router.push("/admin/cobrancas?s=pago")} />
+        <Stat label="A receber" value={brl.format(Number(pay?.open_amount ?? 0))} hint={charges(pay?.open_count ?? 0)} onPress={() => router.push("/admin/cobrancas?s=aberto")} />
         <Stat
           label="Em atraso"
-          value={brl.format(sum(overdue))}
-          tone={overdue.length > 0 ? "danger" : "neutral"}
-          hint={`${overdue.length} ${overdue.length === 1 ? "cobrança" : "cobranças"}`}
+          value={brl.format(Number(pay?.overdue_amount ?? 0))}
+          tone={(pay?.overdue_count ?? 0) > 0 ? "danger" : "neutral"}
+          hint={charges(pay?.overdue_count ?? 0)}
           onPress={() => router.push("/admin/cobrancas?s=atraso")}
         />
       </View>
