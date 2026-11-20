@@ -36,6 +36,34 @@ export function planMovementEdit(input: MovementEditInput): { error: string } | 
   return { patch: { moved_on: date, quantity, packages: kind === "entrada" ? typed : null } };
 }
 
+export type DayItem = { id: string; kind: "entrada" | "perda"; product_id: string };
+
+/**
+ * Mudar a data de todos os lançamentos de um dia de uma vez. A quantidade não muda, então pedido de compra
+ * não atrapalha. Devolve os grupos para gravar: perdas só mudam a data; nas entradas, a que cai no dia de
+ * uma contagem que já contou o produto fica fora daquela contagem (`counted`: produtos contados no dia novo).
+ */
+export function planDayMove(input: {
+  date: string;
+  today: string;
+  from: string;
+  items: DayItem[];
+  counted: Set<string>;
+}): { error: string } | { losses: string[]; afterCount: string[]; beforeCount: string[] } {
+  const { date } = input;
+  if (!ISO.test(date) || Number.isNaN(Date.parse(`${date}T12:00:00Z`))) return { error: "Informe a data." };
+  if (date > input.today) return { error: "A data não pode estar no futuro." };
+  if (date === input.from) return { error: "Escolha um dia diferente." };
+  if (input.items.length === 0) return { error: "Não há lançamentos neste dia." };
+  const losses = input.items.filter((i) => i.kind === "perda").map((i) => i.id);
+  const entries = input.items.filter((i) => i.kind === "entrada");
+  return {
+    losses,
+    afterCount: entries.filter((i) => input.counted.has(i.product_id)).map((i) => i.id),
+    beforeCount: entries.filter((i) => !input.counted.has(i.product_id)).map((i) => i.id),
+  };
+}
+
 /** Número digitado com vírgula ou ponto; vazio ou inválido vira null. */
 export function parseTyped(text: string): number | null {
   const t = text.trim().replace(",", ".");

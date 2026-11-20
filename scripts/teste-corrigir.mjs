@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
-const { updateMovementWith } = await import("../src/lib/movement-update.ts");
+const { moveDayWith, updateMovementWith } = await import("../src/lib/movement-update.ts");
 const { addDays, today } = await import("../src/lib/dates.ts");
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -71,6 +71,21 @@ if (inv.data) {
     await updateMovementWith(db, storeId, outra, day, "1");
     check("produto não contado naquele dia entra na contagem", (await read(outra)).after_count === false);
   }
+  // Dia inteiro: entradas e perda de um dia vão juntas para o dia da contagem.
+  const from = addDays(now, -6);
+  const d1 = await insert({ product_id: p1.id, kind: "entrada", moved_on: from, quantity: upp, packages: 1, after_count: false });
+  const d2 = p2 ? await insert({ product_id: p2.id, kind: "entrada", moved_on: from, quantity: Number(p2.units_per_purchase), packages: 1, after_count: true }) : null;
+  const d3 = await insert({ product_id: p1.id, kind: "perda", moved_on: from, quantity: 1, packages: null });
+  const ids = [d1, d2, d3].filter(Boolean);
+  check("muda a data do dia inteiro", (await moveDayWith(db, storeId, ids, from, day)) === null);
+  const moved = await Promise.all(ids.map(read));
+  check("todos foram para o dia novo", moved.every((x) => x.moved_on === day), JSON.stringify(moved));
+  check("entrada do produto contado fica fora da contagem", moved[0].after_count === true);
+  if (d2) check("entrada do produto não contado entra na contagem", moved[1].after_count === false);
+  check("dia inteiro: futuro recusado", (await moveDayWith(db, storeId, ids, day, addDays(now, 1)))?.includes("futuro"));
+  check("dia inteiro: sem login não muda", (await moveDayWith(createClient(url, key, opts), storeId, ids, day, from)) !== null);
+  check("dia inteiro: continua no dia novo", (await read(d1)).moved_on === day);
+
   await db.from("inventory_items").delete().eq("inventory_id", inv.data.id);
   await db.from("inventories").delete().eq("id", inv.data.id);
 }

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { EditMovement } from "@/components/edit-movement";
+import { EditMovement, MoveDay } from "@/components/edit-movement";
 import { Guide } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
@@ -28,6 +28,7 @@ export default function EntradasTab() {
   const [kind, setKind] = useState<"todos" | "entrada" | "perda">("todos");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<HistoryRow | null>(null);
+  const [moving, setMoving] = useState<HistoryRow[] | null>(null);
   const now = today();
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
@@ -167,6 +168,18 @@ export default function EntradasTab() {
                     {manager && dayValue > 0 && <T size={14} color={colors.muted}>{brl.format(dayValue)}</T>}
                   </View>
                 </Pressable>
+                {isOpen && (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setMoving(items)}
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minHeight: 44, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: colors.line }}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={colors.ink} />
+                    <T weight="semibold" size={15} style={{ textDecorationLine: "underline" }}>
+                      {items.length === 1 ? "Mudar a data" : `Mudar a data dos ${items.length}`}
+                    </T>
+                  </Pressable>
+                )}
                 {isOpen &&
                   items.map((r) => (
                     <View key={r.id} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line }}>
@@ -203,6 +216,17 @@ export default function EntradasTab() {
             );
           })}
         </>
+      )}
+      {moving && (
+        <MoveDay
+          profile={profile}
+          rows={moving}
+          onClose={() => setMoving(null)}
+          onDone={() => {
+            setMoving(null);
+            void reload();
+          }}
+        />
       )}
       {editing && (
         <EditMovement

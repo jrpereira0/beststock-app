@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { today } from "./dates.ts";
 import { isNetworkError } from "./queue.ts";
-import { parseTyped, planMovementEdit } from "./site/movement-edit.ts";
+import { parseTyped, planDayMove, planMovementEdit, type DayItem } from "./site/movement-edit.ts";
 
 /** Devolve null quando deu certo; senão, a mensagem para a pessoa. `offline` quando a conexão caiu. */
 export async function updateMovementWith(
@@ -53,5 +53,37 @@ export async function updateMovementWith(
     .select("id");
   if (error) return isNetworkError(error) ? "offline" : "Não foi possível salvar a correção.";
   if (!updated?.length) return "Não foi possível salvar a correção.";
+  return null;
+}
+
+/**
+ * Muda a data de todos os lançamentos de um dia (os `ids` que estão na tela), como moveDay do site.
+ * Devolve null quando deu certo; senão, a mensagem. `offline` quando a conexão caiu.
+ */
+export async function moveDayWith(db: SupabaseClient, storeId: string, ids: string[], from: string, date: string): Promise<string | null | "offline"> {
+  const { data: items, error: readError } = await db
+    .from("movements")
+    .select("id, kind, product_id")
+    .eq("store_id", storeId)
+    .eq("moved_on", from)
+    .in("id", ids.slice(0, 1000));
+  if (readError) return isNetworkError(readError) ? "offline" : "Não foi possível mudar a data.";
+  // Produtos já contados numa contagem do dia novo (as entradas ficam fora dela, como ao lançar).
+  const { data: inv } = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? await db.from("inventories").select("id, inventory_items(product_id)").eq("store_id", storeId).eq("counted_on", date).maybeSingle()
+    : { data: null };
+  const counted = new Set(((inv?.inventory_items ?? []) as { product_id: string }[]).map((i) => i.product_id));
+  const plan = planDayMove({ date, today: today(), from, items: (items ?? []) as DayItem[], counted });
+  if ("error" in plan) return plan.error;
+  const groups: [string[], Record<string, unknown>][] = [
+    [plan.losses, { moved_on: date }],
+    [plan.afterCount, { moved_on: date, after_count: true }],
+    [plan.beforeCount, { moved_on: date, after_count: false }],
+  ];
+  for (const [list, patch] of groups) {
+    if (!list.length) continue;
+    const { error } = await db.from("movements").update(patch).in("id", list).eq("store_id", storeId);
+    if (error) return isNetworkError(error) ? "offline" : "Não foi possível mudar a data de todos. Puxe a tela para atualizar e confira.";
+  }
   return null;
 }

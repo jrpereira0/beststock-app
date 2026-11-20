@@ -4,7 +4,7 @@ import { cached, check } from "./data";
 import { loadPeople } from "./data-inventario";
 import { addDays, formatQty, today } from "./dates";
 import { isNetworkError } from "./queue.ts";
-import { updateMovementWith } from "./movement-update.ts";
+import { moveDayWith, updateMovementWith } from "./movement-update.ts";
 import { supabase } from "./supabase";
 
 export const HISTORY_DAYS = 90;
@@ -122,6 +122,17 @@ export async function updateMovement(profile: Profile, id: string, date: string,
     return offline;
   }
 }
+/** Muda a data de todos os lançamentos de um dia (como moveDay do site). */
+export async function moveDay(profile: Profile, ids: string[], from: string, date: string): Promise<string | null> {
+  const offline = "Sem internet. Conecte o celular para mudar a data.";
+  try {
+    const res = await moveDayWith(supabase, profile.store.id, ids, from, date);
+    return res === "offline" ? offline : res;
+  } catch {
+    return offline;
+  }
+}
+
 /** Se a nota já foi lançada, diz quando e por quem; se não, devolve null (igual a checkInvoice do site). */
 export async function checkInvoice(profile: Profile, key: string): Promise<string | null> {
   if (!/^\d{44}$/.test(key)) return null;
