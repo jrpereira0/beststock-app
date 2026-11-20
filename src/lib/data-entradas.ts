@@ -1,9 +1,10 @@
-// Histórico de entradas e perdas (igual a entradas/page.tsx do site) e excluir lançamento.
+// Histórico de entradas e perdas (igual a entradas/page.tsx do site), corrigir e excluir lançamento.
 import type { Profile } from "./auth";
 import { cached, check } from "./data";
 import { loadPeople } from "./data-inventario";
 import { addDays, formatQty, today } from "./dates";
 import { isNetworkError } from "./queue.ts";
+import { updateMovementWith } from "./movement-update.ts";
 import { supabase } from "./supabase";
 
 export const HISTORY_DAYS = 90;
@@ -22,6 +23,8 @@ export type HistoryRow = {
   /** Pelo custo cadastrado. Só aparece para o gerente. */
   value: number;
   by: string | null;
+  /** Para corrigir: a quantidade como se digita (embalagens na entrada) e a unidade dela. */
+  edit: { amount: number; unit: string };
 };
 export type History = { rows: HistoryRow[]; lastCount: string | null };
 
@@ -81,6 +84,10 @@ export async function loadHistory(profile: Profile) {
         // O funcionário não vê valores: nem chegam ao aparelho dele.
         value: manager ? (quantity / Number(p?.units_per_purchase ?? 1)) * Number(p?.cost_per_purchase ?? 0) : 0,
         by: manyPeople ? (people[m.created_by ?? ""] ?? null) : null,
+        edit:
+          m.kind === "entrada"
+            ? { amount: m.packages !== null ? Number(m.packages) : quantity / Number(p?.units_per_purchase ?? 1), unit: p?.purchase_unit ?? "" }
+            : { amount: quantity, unit: countUnit },
       };
     });
     return { rows, lastCount: (countRes.data?.counted_on as string | undefined) ?? null };
@@ -105,6 +112,16 @@ export async function deleteMovement(profile: Profile, id: string): Promise<stri
   }
 }
 
+/** Corrige a data e a quantidade de um lançamento, com a mesma regra do site (updateMovement). */
+export async function updateMovement(profile: Profile, id: string, date: string, typedText: string): Promise<string | null> {
+  const offline = "Sem internet. Conecte o celular para corrigir.";
+  try {
+    const res = await updateMovementWith(supabase, profile.store.id, id, date, typedText);
+    return res === "offline" ? offline : res;
+  } catch {
+    return offline;
+  }
+}
 /** Se a nota já foi lançada, diz quando e por quem; se não, devolve null (igual a checkInvoice do site). */
 export async function checkInvoice(profile: Profile, key: string): Promise<string | null> {
   if (!/^\d{44}$/.test(key)) return null;

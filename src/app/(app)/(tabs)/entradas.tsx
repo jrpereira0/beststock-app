@@ -1,4 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { EditMovement } from "@/components/edit-movement";
 import { Guide } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
@@ -25,6 +27,7 @@ export default function EntradasTab() {
   const { data, fromCache, error, refreshing, refresh, reload } = useLoad(load);
   const [kind, setKind] = useState<"todos" | "entrada" | "perda">("todos");
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [editing, setEditing] = useState<HistoryRow | null>(null);
   const now = today();
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
@@ -180,11 +183,19 @@ export default function EntradasTab() {
                       <Badge tone={r.kind === "entrada" ? "ok" : "danger"}>{KIND[r.kind]}</Badge>
                       <Pressable
                         accessibilityRole="button"
+                        accessibilityLabel={`Corrigir lançamento de ${r.name}`}
+                        onPress={() => setEditing(r)}
+                        style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Ionicons name="pencil" size={20} color={colors.muted} />
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
                         accessibilityLabel={`Excluir lançamento de ${r.name}`}
                         onPress={() => remove(r)}
                         style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
                       >
-                        <T weight="bold" size={18} color={colors.danger}>✕</T>
+                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
                       </Pressable>
                     </View>
                   ))}
@@ -192,6 +203,17 @@ export default function EntradasTab() {
             );
           })}
         </>
+      )}
+      {editing && (
+        <EditMovement
+          profile={profile}
+          row={editing}
+          onClose={() => setEditing(null)}
+          onDone={() => {
+            setEditing(null);
+            void reload();
+          }}
+        />
       )}
     </Page>
   );
