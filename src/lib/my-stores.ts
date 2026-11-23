@@ -7,18 +7,12 @@ export type MyStore = { id: string; name: string; city: string };
 
 const OFFLINE = "Sem internet. Conecte o celular e tente de novo.";
 
-type Row = { id: string; name: string; city: string; active: boolean };
-
 /** As lojas ativas do login, por nome. */
 export async function fetchMyStores(): Promise<MyStore[]> {
-  const { data, error } = await supabase.from("profile_stores").select("store_id, stores(id, name, city, active)");
+  // Do banco (my_stores): as lojas do login e, sendo gerente, as do mesmo cliente.
+  const { data, error } = await supabase.rpc("my_stores");
   if (error) throw error;
-  const list: MyStore[] = [];
-  for (const r of (data ?? []) as unknown as { stores: Row | Row[] | null }[]) {
-    const s = Array.isArray(r.stores) ? r.stores[0] : r.stores;
-    if (s?.active) list.push({ id: s.id, name: s.name, city: s.city });
-  }
-  return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return ((data ?? []) as MyStore[]).map((s) => ({ id: s.id, name: s.name, city: s.city }));
 }
 
 /** Troca a loja que o login usa. O banco só deixa trocar para uma loja da lista do próprio login. */

@@ -9,8 +9,9 @@ import { ListLink } from "@/components/widgets";
 import { useAuth, useProfile } from "@/lib/auth";
 import { categoriesOf, groupProducts } from "@/lib/count-rules";
 import { loadMovementForm, Offline, type MovementForm } from "@/lib/data";
-import { loadTransferMissing, transferProducts, type MyStore } from "@/lib/data-lojas";
-import { addDays, daysFrom, formatDate, formatDay, today, weekday } from "@/lib/dates";
+import { loadTransferMissing, loadTransferStock, transferProducts, type MyStore } from "@/lib/data-lojas";
+import { checkTransferStock, stockTotal, type StockParts } from "@/lib/site/transfer-stock";
+import { addDays, daysFrom, formatDate, formatDay, formatQty, today, weekday } from "@/lib/dates";
 import { validateMovements, type MovementProduct } from "@/lib/movements";
 import { colors } from "@/lib/theme";
 
@@ -62,14 +63,15 @@ export default function TransferirScreen() {
 
 function Loader({ destination, title }: { destination: MyStore; title: string }) {
   const profile = useProfile();
-  const [data, setData] = useState<{ form: MovementForm; missing: string[] } | null>(null);
+  const [data, setData] = useState<{ form: MovementForm; missing: string[]; stock: Record<string, StockParts | null> } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     // Os produtos da loja daqui (a mesma lista da perda) e quais ainda não existem na loja de destino.
-    Promise.all([loadMovementForm(profile, "perda"), loadTransferMissing(profile, destination.id)])
-      .then(([form, missing]) => alive && setData({ form: form.data, missing: missing.data }))
+    // Os produtos daqui (a mesma lista da perda), quais ainda não existem lá e quanto há de cada um.
+    Promise.all([loadMovementForm(profile, "perda"), loadTransferMissing(profile, destination.id), loadTransferStock(profile)])
+      .then(([form, missing, stock]) => alive && setData({ form: form.data, missing: missing.data, stock: stock.data }))
       .catch((e: unknown) => alive && setError(e instanceof Offline ? "Sem internet. Conecte o celular para transferir." : "Não foi possível carregar os produtos."));
     return () => {
       alive = false;
@@ -93,10 +95,22 @@ function Loader({ destination, title }: { destination: MyStore; title: string })
       </View>
     );
   }
-  return <Form destination={destination} form={data.form} missing={data.missing} title={title} />;
+  return <Form destination={destination} form={data.form} missing={data.missing} stock={data.stock} title={title} />;
 }
 
-function Form({ destination, form, missing, title }: { destination: MyStore; form: MovementForm; missing: string[]; title: string }) {
+function Form({
+  destination,
+  form,
+  missing,
+  stock,
+  title,
+}: {
+  destination: MyStore;
+  form: MovementForm;
+  missing: string[];
+  stock: Record<string, StockParts | null>;
+  title: string;
+}) {
   const profile = useProfile();
   const now = today();
   const [date, setDate] = useState(now);
@@ -124,8 +138,17 @@ function Form({ destination, form, missing, title }: { destination: MyStore; for
       setError(checked.error);
       return;
     }
+    // Não manda mais do que tem: última contagem + entradas − saídas (produto sem contagem não tem limite).
+    const items = checked.items.map((i) => ({ product_id: i.product_id, quantity: i.typed }));
+    const names = Object.fromEntries(form.products.map((p) => [p.id, p.name]));
+    const units = Object.fromEntries(form.products.map((p) => [p.id, p.count_unit]));
+    const tooMuch = checkTransferStock(items, stock, names, units);
+    if (tooMuch) {
+      setError(tooMuch);
+      return;
+    }
     setSaving(true);
-    const fail = await transferProducts(destination.id, date, checked.items.map((i) => ({ product_id: i.product_id, quantity: i.typed })));
+    const fail = await transferProducts(destination.id, date, items);
     setSaving(false);
     if (fail) {
       setError(fail);
@@ -232,7 +255,7 @@ function Form({ destination, form, missing, title }: { destination: MyStore; for
           </View>
         }
         renderItem={({ item }) => (
-          <Row product={item} value={values[item.id] ?? ""} willCreate={missingSet.has(item.id) ? destination.name : null} onChange={onChange} />
+          <Row product={item} value={values[item.id] ?? ""} parts={stock[item.id]} willCreate={missingSet.has(item.id) ? destination.name : null} onChange={onChange} />
         )}
       />
       <SafeAreaView edges={["bottom"]} style={{ backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line }}>
@@ -251,28 +274,58 @@ function Form({ destination, form, missing, title }: { destination: MyStore; for
 const Row = memo(function Row({
   product: p,
   value,
+  parts,
   willCreate,
   onChange,
 }: {
   product: MovementProduct;
   value: string;
+  parts: StockParts | null | undefined;
   willCreate: string | null;
   onChange: (id: string, text: string) => void;
 }) {
+  const total = stockTotal(parts);
+  const typed = Number(value.trim().replace(",", "."));
+  const qty = Number.isFinite(typed) && typed > 0 ? typed : 0;
   return (
-    <View style={[ui.card, { paddingVertical: 12 }]}>
+    <View style={[ui.card, { paddingVertical: 12, gap: 8 }]}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <View style={{ flexShrink: 1, minWidth: 120 }}>
           <T weight="semibold">{p.name}</T>
           <T size={14} color={colors.muted}>{`em ${p.count_unit}`}</T>
+          {parts && total !== null ? (
+            <T size={14} color={colors.muted}>
+              {`Contagem de ${formatDate(parts.on)}: ${formatQty(parts.quantity)}`}
+              {parts.entries > 0 ? ` + ${formatQty(parts.entries)} de entradas` : ""}
+              {parts.losses > 0 ? ` − ${formatQty(parts.losses)} de saídas` : ""}
+              {" = "}
+              <T size={14} weight="bold">{`${formatQty(total)} ${p.count_unit} em estoque`}</T>
+            </T>
+          ) : (
+            <T size={14} color={colors.muted}>Não foi contado na última contagem: não dá para saber quanto tem.</T>
+          )}
           {willCreate && (
             <T size={14} weight="semibold" color={colors.brandText}>
               Ainda não existe em {willCreate}: será cadastrado lá
             </T>
           )}
         </View>
-        <QuantityStepper label={p.name} value={value} onChange={(t) => onChange(p.id, t)} />
+        <View style={{ alignItems: "flex-end", gap: 6 }}>
+          <QuantityStepper label={p.name} value={value} onChange={(t) => onChange(p.id, t)} />
+          {total !== null && total > 0 && (
+            <Pressable accessibilityRole="button" onPress={() => onChange(p.id, String(total).replace(".", ","))} style={{ minHeight: 36, justifyContent: "center", paddingHorizontal: 6 }}>
+              <T size={15} weight="semibold" style={{ textDecorationLine: "underline" }}>Mandar tudo</T>
+            </Pressable>
+          )}
+        </View>
       </View>
+      {total !== null && qty > 0 && (
+        qty > total + 1e-9 ? (
+          <T size={14} weight="semibold" color={colors.danger}>{`Passou do que tem: só há ${formatQty(total)} ${p.count_unit} em estoque.`}</T>
+        ) : (
+          <T size={14} weight="semibold" color={colors.ok}>{`Sobram ${formatQty(Math.round((total - qty) * 1000) / 1000)} ${p.count_unit} aqui.`}</T>
+        )
+      )}
     </View>
   );
 });

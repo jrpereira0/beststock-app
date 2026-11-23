@@ -91,8 +91,11 @@ export async function loadStores(filter: StoreFilter = "todas", search = "", lim
 }
 
 export type StoreLogin = { id: string; name: string; email: string; access: "gerente" | "funcionario"; shared?: boolean };
+export type LinkedStore = { id: string; name: string; city: string };
 export type StoreDetail = {
   store: Store;
+  /** Lojas do mesmo cliente (ligadas pelo administrador): os gerentes veem e trocam entre todas. */
+  linked: LinkedStore[];
   logins: StoreLogin[];
   products: number;
   lastCount: string | null;
@@ -122,8 +125,12 @@ export async function loadStore(id: string) {
     const memberships = members.length ? ((await supabase.from("profile_stores").select("profile_id").in("profile_id", members.map((m) => m.id))).data ?? []) : [];
     const storeCount = new Map<string, number>();
     for (const m of memberships as { profile_id: string }[]) storeCount.set(m.profile_id, (storeCount.get(m.profile_id) ?? 0) + 1);
+    const linked = store.client_id
+      ? (((await supabase.from("stores").select("id, name, city").eq("client_id", store.client_id).neq("id", id).order("name")).data ?? []) as LinkedStore[])
+      : [];
     return {
       store,
+      linked,
       logins: members.map((m): StoreLogin => ({ id: m.id, name: m.name, email: m.email, access: m.access, shared: (storeCount.get(m.id) ?? 0) > 1 })),
       products: productsRes.count ?? 0,
       lastCount: (lastInvRes.data?.counted_on as string | undefined) ?? null,
@@ -472,6 +479,36 @@ export async function grantStoreAccess(storeId: string, email: string): Promise<
   } catch {
     return { error: OFFLINE };
   }
+}
+
+/**
+ * Liga a unidade a outra do mesmo cliente (uma vez só, vale nos dois sentidos). A outra loja se acha pelo nome.
+ * Os gerentes das duas passam a ver, trocar e transferir entre todas as lojas do grupo.
+ */
+export async function linkStores(storeId: string, nameRaw: string): Promise<{ error: string } | { ok: string }> {
+  const name = nameRaw.replace(/[%_,]/g, " ").trim();
+  if (name.length < 2) return { error: "Digite o nome da outra loja." };
+  try {
+    const { data } = await supabase.from("stores").select("id, name, city").ilike("name", `%${name}%`).neq("id", storeId).limit(6);
+    const found = (data ?? []) as LinkedStore[];
+    const pick = found.find((s) => s.name.toLowerCase() === name.toLowerCase()) ?? (found.length === 1 ? found[0] : null);
+    if (!pick) {
+      return { error: found.length === 0 ? `Nenhuma loja com "${name}" no nome.` : `Mais de uma loja combina: ${found.map((s) => s.name).join("; ")}. Digite o nome inteiro.` };
+    }
+    const { error } = await supabase.rpc("admin_link_stores", { p_a: storeId, p_b: pick.id });
+    if (error) return { error: isNetworkError(error) ? OFFLINE : error.code === "P0001" ? error.message : "Não foi possível ligar as lojas." };
+    return { ok: `${pick.name} agora é do mesmo cliente. Os gerentes das duas lojas veem as duas.` };
+  } catch {
+    return { error: OFFLINE };
+  }
+}
+
+/** Tira a loja do grupo do cliente. */
+export async function unlinkStore(id: string): Promise<string | null> {
+  return run(async () => {
+    const { error } = await supabase.rpc("admin_unlink_store", { p_store: id });
+    return error ? (isNetworkError(error) ? OFFLINE : "Não foi possível desligar.") : null;
+  });
 }
 
 /** Tira o acesso de um login a esta loja (ele continua entrando nas outras). */

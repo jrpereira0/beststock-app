@@ -21,6 +21,7 @@ const files = [
   "print-fit.ts",
   "movement-edit.ts",
   "select-all.ts",
+  "transfer-stock.ts",
   "admin-alerts.ts",
 ];
 // O tipo Alert do site mora em notifications.ts, que depende do servidor: no app ele fica em src/lib/alert.ts.

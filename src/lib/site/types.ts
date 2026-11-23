@@ -20,6 +20,8 @@ export type Store = {
   billing_start: string | null;
   blocked_at: string | null;
   blocked_reason: string;
+  /** Lojas com o mesmo client_id são do mesmo cliente: os gerentes de uma veem, trocam e transferem entre todas. */
+  client_id?: string | null;
 };
 
 export type Plan = {
@@ -138,6 +140,8 @@ export type Movement = {
   moved_on: string;
   quantity: number;
   packages: number | null;
+  /** Transferência entre lojas de onde vem (ou para onde vai) este lançamento. */
+  transfer_id?: string | null;
   /** Login que lançou. */
   created_by?: string | null;
 };

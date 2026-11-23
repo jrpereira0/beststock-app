@@ -18,6 +18,8 @@ import {
   removeStoreLogin,
   revokeStoreAccess,
   grantStoreAccess,
+  linkStores,
+  unlinkStore,
   sendAnnouncement,
   unblockStore,
   updateBilling,
@@ -222,6 +224,7 @@ function Detail({ data, tab, setTab, created, reload }: { data: StoreDetail; tab
             onRevoke={(loginId) => revokeStoreAccess(store.id, loginId)}
             onChanged={reload}
           />
+          <LinkStores storeId={store.id} linked={data.linked} onDone={reload} />
           <GrantAccess storeId={store.id} onDone={reload} />
         </Card>
       )}
@@ -438,13 +441,66 @@ function GrantAccess({ storeId, onDone }: { storeId: string; onDone: () => void 
   }
   return (
     <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 8, paddingTop: 14 }}>
-      <T weight="extrabold" size={16}>Login de outra loja também acessa esta</T>
+      <T weight="extrabold" size={16}>Dar acesso a um login específico</T>
       <T size={14} color={colors.muted}>
         Para um cliente com mais de uma loja: digite o e-mail do login dele e ele passa a trocar entre as lojas dele (e a transferir produtos entre elas). O acesso (gerente ou funcionário) é o do login.
       </T>
       <Field label="E-mail do login" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoCorrect={false} />
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
       <Button label="Dar acesso a esta loja" busy={busy} onPress={() => void grant()} />
+    </View>
+  );
+}
+
+/** Lojas do mesmo cliente: liga uma vez e vale nos dois sentidos (os gerentes de uma veem, trocam e transferem entre todas). */
+function LinkStores({ storeId, linked, onDone }: { storeId: string; linked: { id: string; name: string; city: string }[]; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  async function link() {
+    setBusy(true);
+    setMessage(null);
+    const res = await linkStores(storeId, name);
+    setBusy(false);
+    if ("error" in res) setMessage({ tone: "danger", text: res.error });
+    else {
+      setMessage({ tone: "ok", text: res.ok });
+      setName("");
+      onDone();
+    }
+  }
+  function unlink(l: { id: string; name: string }) {
+    Dialog.alert("Desligar esta loja do grupo?", `${l.name} deixa de ser do mesmo cliente. Os gerentes dela e das outras lojas do grupo não veem mais as lojas um do outro.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Desligar",
+        style: "destructive",
+        onPress: async () => {
+          const err = await unlinkStore(l.id);
+          if (err) Dialog.alert("Não desligou", err);
+          else onDone();
+        },
+      },
+    ]);
+  }
+  return (
+    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 8, paddingTop: 14 }}>
+      <T weight="extrabold" size={16}>Lojas do mesmo cliente</T>
+      <T size={14} color={colors.muted}>
+        Ligue uma vez e vale nos dois sentidos: os gerentes de uma loja passam a ver, trocar e transferir produtos entre todas as lojas ligadas, inclusive gerentes criados depois. Funcionário continua só na loja dele.
+      </T>
+      {linked.map((l) => (
+        <View key={l.id} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <T weight="semibold">{l.name}</T>
+            {l.city ? <T size={14} color={colors.muted}>{l.city}</T> : null}
+          </View>
+          <Button label="Desligar" variant="danger" style={{ minHeight: 44 }} onPress={() => unlink(l)} />
+        </View>
+      ))}
+      <Field label="Nome da outra loja" hint="Digite o nome (ou parte dele). Se mais de uma combinar, digite o nome inteiro." value={name} onChangeText={setName} autoCorrect={false} />
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+      <Button label="Ligar a esta loja" busy={busy} onPress={() => void link()} />
     </View>
   );
 }

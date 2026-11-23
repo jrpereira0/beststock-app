@@ -100,6 +100,8 @@ export type ProductPlan = {
   current: number | null;
   /** Última contagem + entradas − perdas, sem descontar o consumo desde então. */
   counted: number | null;
+  /** As partes de "counted": a última contagem (dia e quantidade) e o que entrou e saiu depois dela. */
+  lastCount: { on: string; quantity: number; entries: number; losses: number } | null;
   /** Dias desde a última contagem. */
   daysSinceCount: number;
   coverageDays: number | null;
@@ -354,7 +356,20 @@ export function buildPlan(input: PlanInput): StockPlan {
 
       const countedNow =
         last && last.items[id] !== undefined ? Math.max(0, last.items[id] + net(id, last.counted_on, null)) : null;
+      // As partes da conta, para a tela mostrar "contagem + entradas − saídas = tem".
+      let lastCount: { on: string; quantity: number; entries: number; losses: number } | null = null;
+      if (last && last.items[id] !== undefined) {
+        let entries = 0;
+        let losses = 0;
+        for (const m of movements.get(id) ?? []) {
+          if (on(m) <= last.counted_on) continue;
+          if (m.kind === "entrada") entries += m.quantity;
+          else losses += m.quantity;
+        }
+        lastCount = { on: last.counted_on, quantity: last.items[id], entries, losses };
+      }
       return {
+        lastCount,
         product,
         cycles: used.map(
           (c): Cycle => ({
@@ -398,7 +413,7 @@ export function buildPlan(input: PlanInput): StockPlan {
   }
 
   const items: ProductPlan[] = drafts.map((d) => {
-    const { product, dailyAvg, countedNow } = d;
+    const { product, dailyAvg, countedNow, lastCount } = d;
     const supplier = product.supplier_id ? (suppliers.get(product.supplier_id) ?? null) : null;
     const leadDays = deliveryDays(product, supplier);
     // O pedido sai depois de cada contagem: precisa durar até a próxima, mais o tempo da entrega.
@@ -552,6 +567,7 @@ export function buildPlan(input: PlanInput): StockPlan {
       abc: cls,
       current,
       counted: countedNow,
+      lastCount,
       daysSinceCount,
       coverageDays: current !== null && dailyAvg !== null && dailyAvg > 0 ? current / dailyAvg : null,
       horizonDays,

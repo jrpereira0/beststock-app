@@ -2,6 +2,8 @@
 // (switch_store, transfer_products, delete_transfer, transfer_missing), as mesmas do site.
 import type { Profile } from "./auth";
 import { cached, check } from "./data";
+import { computePlan } from "./data-compras";
+import type { StockParts } from "./site/transfer-stock";
 import { isNetworkError } from "./queue.ts";
 import { supabase } from "./supabase";
 
@@ -14,6 +16,16 @@ export async function loadTransferMissing(profile: Profile, toStoreId: string) {
   return cached(`beststock:transferencia:${profile.store.id}:${toStoreId}`, async () => {
     const res = await supabase.rpc("transfer_missing", { p_to: toStoreId });
     return (check(res) ?? []) as string[];
+  });
+}
+
+/** O que há de cada produto da loja ativa: última contagem + entradas − saídas (a conta da lista de compras). */
+export async function loadTransferStock(profile: Profile) {
+  return cached(`beststock:transfer-estoque:${profile.store.id}`, async () => {
+    const plan = await computePlan(profile.store.id, profile.store.count_interval_days);
+    const stock: Record<string, StockParts | null> = {};
+    for (const i of plan.items) stock[i.product.id] = i.lastCount;
+    return stock;
   });
 }
 
