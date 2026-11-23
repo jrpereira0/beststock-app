@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { fetchMyStores, switchStoreRpc, type MyStore } from "./my-stores";
 import { isNetworkError } from "./queue.ts";
 import { callSite, hasSite } from "./site-api";
 import { supabase } from "./supabase";
@@ -32,10 +33,10 @@ const profileKey = "beststock:perfil";
 type ProfileResult = { profile: Profile } | { admin: AdminProfile } | { blocked: keyof typeof LOGIN_MESSAGES } | { offline: true };
 
 /** Lê o perfil e a loja do banco, com as mesmas barreiras do site (src/lib/auth.ts). */
-async function fetchProfile(userId: string): Promise<ProfileResult> {
+async function fetchProfile(userId: string, retry = true): Promise<ProfileResult> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, role, store_id, name, email, access, stores(id, name, active, count_interval_days)")
+    .select("id, role, store_id, name, email, access, stores!store_id(id, name, active, count_interval_days)")
     .eq("id", userId)
     .maybeSingle();
   if (error) return isNetworkError(error) ? { offline: true } : { blocked: "perfil" };
@@ -43,8 +44,14 @@ async function fetchProfile(userId: string): Promise<ProfileResult> {
   const { stores, ...rest } = data as unknown as Omit<Profile, "store"> & { stores: Store | Store[] | null };
   if (rest.role === "admin") return { admin: { id: rest.id, role: "admin", name: rest.name, email: rest.email } };
   const store = (Array.isArray(stores) ? stores[0] : stores) ?? null;
-  // Loja desativada: a regra do banco não devolve a linha.
-  if (!store || !store.active || !rest.store_id) return { blocked: "inativa" };
+  // Loja desativada: a regra do banco não devolve a linha. Quem tem outra loja ativa passa para ela.
+  if (!store || !store.active || !rest.store_id) {
+    if (retry) {
+      const { data: next } = await supabase.rpc("ensure_active_store");
+      if (next) return fetchProfile(userId, false);
+    }
+    return { blocked: "inativa" };
+  }
   return { profile: { ...rest, store } };
 }
 
@@ -59,6 +66,10 @@ type AuthState = {
   signIn(email: string, password: string): Promise<string | null>;
   signOut(): Promise<void>;
   refreshProfile(): Promise<void>;
+  /** Lojas do login. Com mais de uma, a pessoa troca de loja pelo nome na tela inicial. */
+  stores: MyStore[];
+  /** Troca a loja que o login usa. Devolve a mensagem de erro, ou null quando deu certo. */
+  switchStore(id: string): Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -69,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [admin, setAdmin] = useState<AdminProfile | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [stores, setStores] = useState<MyStore[]>([]);
   const userRef = useRef<string | null>(null);
 
   const block = useCallback(async (reason: keyof typeof LOGIN_MESSAGES) => {
@@ -88,6 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile((old) => (old && JSON.stringify(old) === JSON.stringify(res.profile) ? old : res.profile));
         setAdmin(null);
         await AsyncStorage.setItem(profileKey, JSON.stringify(res.profile));
+        // As lojas do login: sem internet, vale a última lista guardada.
+        const storesKey = `beststock:lojas:${userId}`;
+        try {
+          const list = await fetchMyStores();
+          setStores((old) => (JSON.stringify(old) === JSON.stringify(list) ? old : list));
+          await AsyncStorage.setItem(storesKey, JSON.stringify(list));
+        } catch {
+          const raw = await AsyncStorage.getItem(storesKey);
+          if (raw) setStores(JSON.parse(raw) as MyStore[]);
+        }
       } else if ("admin" in res) {
         setAdmin((old) => (old && JSON.stringify(old) === JSON.stringify(res.admin) ? old : res.admin));
         setProfile(null);
@@ -177,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     setProfile(null);
     setAdmin(null);
+    setStores([]);
     await AsyncStorage.removeItem(profileKey);
     await supabase.auth.signOut({ scope: "local" });
   }, []);
@@ -185,9 +208,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userRef.current) await loadProfile(userRef.current);
   }, [loadProfile]);
 
+  const switchStore = useCallback(
+    async (id: string) => {
+      const err = await switchStoreRpc(id);
+      if (err) return err;
+      if (userRef.current) await loadProfile(userRef.current);
+      return null;
+    },
+    [loadProfile],
+  );
+
   const value = useMemo(
-    () => ({ ready, session, profile, admin, notice, signIn, signOut, refreshProfile }),
-    [ready, session, profile, admin, notice, signIn, signOut, refreshProfile],
+    () => ({ ready, session, profile, admin, notice, signIn, signOut, refreshProfile, stores, switchStore }),
+    [ready, session, profile, admin, notice, signIn, signOut, refreshProfile, stores, switchStore],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

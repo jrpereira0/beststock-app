@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Guide, HowItWorks } from "@/components/guide";
 import { GUIDES } from "@/lib/guides";
 import { Dialog } from "@/lib/dialog";
@@ -25,7 +26,7 @@ const ACCESS = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 
 export default function HomeScreen() {
   const profile = useProfile();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, stores, switchStore } = useAuth();
   const { refresh: refreshNotifications } = useNotifications();
   const online = useOnline();
   const [home, setHome] = useState<Home | null>(null);
@@ -82,6 +83,32 @@ export default function HomeScreen() {
       return;
     }
     router.push(`/contagem/${res.id}`);
+  }
+
+  /** Cliente com várias lojas: escolhe a loja pelo nome. Com contagem guardada no aparelho, espera enviar antes. */
+  function chooseStore() {
+    if (pending > 0) {
+      Dialog.alert("Antes de trocar de loja", "Há uma contagem guardada neste aparelho, esperando internet. Conecte o celular e deixe enviar antes de trocar de loja.");
+      return;
+    }
+    Dialog.alert("Trocar de loja", `Você está em ${profile.store.name}. Para qual loja quer ir?`, [
+      ...stores
+        .filter((s) => s.id !== profile.store.id)
+        .map((s) => ({
+          text: s.name,
+          onPress: async () => {
+            const err = await switchStore(s.id);
+            if (err) {
+              Dialog.alert("Não trocou de loja", err);
+              return;
+            }
+            setHome(null);
+            setPlan(null);
+            router.navigate("/");
+          },
+        })),
+      { text: "Cancelar", style: "cancel" as const },
+    ]);
   }
 
   async function markRead(id: string) {
@@ -142,7 +169,19 @@ export default function HomeScreen() {
           <T color={colors.muted}>
             {name && name !== profile.store.name ? `Olá, ${name}` : "Olá,"} · {ACCESS[profile.access]}
           </T>
-          <T weight="extrabold" size={26}>{profile.store.name}</T>
+          {stores.length > 1 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Loja ${profile.store.name}. Trocar de loja`}
+              onPress={chooseStore}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 }}
+            >
+              <T weight="extrabold" size={26} style={{ flexShrink: 1 }}>{profile.store.name}</T>
+              <Ionicons name="swap-horizontal" size={22} color={colors.ink} />
+            </Pressable>
+          ) : (
+            <T weight="extrabold" size={26}>{profile.store.name}</T>
+          )}
         </View>
 
         {(!online || fromCache) && (

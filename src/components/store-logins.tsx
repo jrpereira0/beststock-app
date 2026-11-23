@@ -7,7 +7,7 @@ import type { SiteResult } from "@/lib/site-api";
 import { colors } from "@/lib/theme";
 
 type Access = "gerente" | "funcionario";
-export type LoginRow = { id: string; name: string; email: string; access: Access };
+export type LoginRow = { id: string; name: string; email: string; access: Access; shared?: boolean };
 const LABEL = { gerente: "Gerente", funcionario: "Funcionário" } as const;
 const TEXT = {
   gerente: "Faz tudo: compras, produtos, fornecedores, valores e logins.",
@@ -27,7 +27,10 @@ export function StoreLogins({
   onUpdate,
   onRemove,
   onChanged,
+  onRevoke,
 }: {
+  /** Só o administrador tira o acesso de um login que acessa mais de uma loja. */
+  onRevoke?: (id: string) => Promise<string | null>;
   logins: LoginRow[];
   selfId: string;
   storeName: string;
@@ -74,6 +77,21 @@ export function StoreLogins({
     ]);
   }
 
+  function revoke(l: LoginRow) {
+    Dialog.alert("Tirar o acesso a esta loja?", `${display(l)} (${l.email}) deixa de acessar ${storeName}, mas continua entrando nas outras lojas dele.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Tirar o acesso",
+        style: "destructive",
+        onPress: async () => {
+          const err = await onRevoke?.(l.id);
+          if (err) Dialog.alert("Não tirou o acesso", err);
+          else onChanged();
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={{ gap: 10 }}>
       {logins.map((l) => {
@@ -83,20 +101,26 @@ export function StoreLogins({
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <T weight="semibold">{display(l)}</T>
               <Badge tone={l.access === "gerente" ? "ok" : "off"}>{LABEL[l.access]}</Badge>
+              {l.shared && <Badge tone="info">Acessa mais de uma loja</Badge>}
               {l.id === selfId && <T size={14} color={colors.muted}>(você)</T>}
             </View>
             <T size={14} color={colors.muted}>{l.email}</T>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button
-                label="Editar"
-                variant="secondary"
-                style={{ flex: 1, minHeight: 44 }}
-                onPress={() => {
-                  setError(null);
-                  setEditing({ id: l.id, name: l.name, email: l.email, access: l.access, password: "" });
-                }}
-              />
-              {l.id !== selfId && !last && <Button label="Remover" variant="danger" style={{ flex: 1, minHeight: 44 }} onPress={() => remove(l)} />}
+              {/* Login de várias lojas: só o administrador mexe (quem tem onRevoke). */}
+              {(!l.shared || onRevoke) && (
+                <Button
+                  label="Editar"
+                  variant="secondary"
+                  style={{ flex: 1, minHeight: 44 }}
+                  onPress={() => {
+                    setError(null);
+                    setEditing({ id: l.id, name: l.name, email: l.email, access: l.access, password: "" });
+                  }}
+                />
+              )}
+              {l.shared
+                ? onRevoke && l.id !== selfId && <Button label="Tirar o acesso" variant="danger" style={{ flex: 1, minHeight: 44 }} onPress={() => revoke(l)} />
+                : l.id !== selfId && !last && <Button label="Remover" variant="danger" style={{ flex: 1, minHeight: 44 }} onPress={() => remove(l)} />}
             </View>
           </View>
         );

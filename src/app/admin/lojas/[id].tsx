@@ -16,6 +16,8 @@ import {
   loadStore,
   plansFor,
   removeStoreLogin,
+  revokeStoreAccess,
+  grantStoreAccess,
   sendAnnouncement,
   unblockStore,
   updateBilling,
@@ -217,8 +219,10 @@ function Detail({ data, tab, setTab, created, reload }: { data: StoreDetail; tab
             onAdd={(f) => addStoreLogin(store.id, f)}
             onUpdate={(f) => updateStoreLogin(store.id, f)}
             onRemove={(loginId) => removeStoreLogin(store.id, loginId)}
+            onRevoke={(loginId) => revokeStoreAccess(store.id, loginId)}
             onChanged={reload}
           />
+          <GrantAccess storeId={store.id} onDone={reload} />
         </Card>
       )}
 
@@ -415,3 +419,32 @@ function BlockDialog({ storeId, billingActive, suggested, onClose, onDone }: { s
   );
 }
 
+/** Cliente com mais de uma loja: liga o login dele (pelo e-mail) a esta unidade. */
+function GrantAccess({ storeId, onDone }: { storeId: string; onDone: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  async function grant() {
+    setBusy(true);
+    setMessage(null);
+    const res = await grantStoreAccess(storeId, email);
+    setBusy(false);
+    if ("error" in res) setMessage({ tone: "danger", text: res.error });
+    else {
+      setMessage({ tone: "ok", text: res.ok });
+      setEmail("");
+      onDone();
+    }
+  }
+  return (
+    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 8, paddingTop: 14 }}>
+      <T weight="extrabold" size={16}>Login de outra loja também acessa esta</T>
+      <T size={14} color={colors.muted}>
+        Para um cliente com mais de uma loja: digite o e-mail do login dele e ele passa a trocar entre as lojas dele (e a transferir produtos entre elas). O acesso (gerente ou funcionário) é o do login.
+      </T>
+      <Field label="E-mail do login" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoCorrect={false} />
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+      <Button label="Dar acesso a esta loja" busy={busy} onPress={() => void grant()} />
+    </View>
+  );
+}

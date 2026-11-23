@@ -19,7 +19,7 @@ export type Notifications = { alerts: Alert[]; read: Announcement[] };
 
 export async function loadNotifications(profile: Profile) {
   const storeId = profile.store.id;
-  return cached(`beststock:notificacoes:${profile.id}`, async (): Promise<Notifications> => {
+  return cached(`beststock:notificacoes:${profile.store.id}:${profile.id}`, async (): Promise<Notifications> => {
     const now = today();
     const manager = profile.access === "gerente";
     // Cobranças: garante as do mês (a função do banco nunca duplica) antes de ler.

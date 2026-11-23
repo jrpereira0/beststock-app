@@ -8,8 +8,9 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Button, Card, T } from "@/components/ui";
 import { Badge, Page, Stat } from "@/components/widgets";
-import { useProfile } from "@/lib/auth";
+import { useAuth, useProfile } from "@/lib/auth";
 import { deleteMovement, HISTORY_DAYS, loadHistory, type HistoryRow } from "@/lib/data-entradas";
+import { deleteTransfer } from "@/lib/data-lojas";
 import { daysBetween, formatDate, formatQty, today } from "@/lib/dates";
 import { brl } from "@/lib/site/billing";
 import { colors } from "@/lib/theme";
@@ -23,24 +24,48 @@ const ago = (days: number) => (days <= 0 ? "Hoje" : days === 1 ? "Ontem" : `Há 
 export default function EntradasTab() {
   const profile = useProfile();
   const manager = profile.access === "gerente";
+  const { stores } = useAuth();
   const load = useCallback(() => loadHistory(profile), [profile]);
   const { data, fromCache, error, refreshing, refresh, reload } = useLoad(load);
-  const [kind, setKind] = useState<"todos" | "entrada" | "perda">("todos");
+  const [kind, setKind] = useState<"todos" | "entrada" | "perda" | "transferencia">("todos");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<HistoryRow | null>(null);
   const [moving, setMoving] = useState<HistoryRow[] | null>(null);
   const now = today();
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
-  const entries = rows.filter((r) => r.kind === "entrada");
-  const losses = rows.length - entries.length;
+  // Transferência não é compra nem perda: fica fora destes números e tem a própria contagem.
+  const entries = rows.filter((r) => r.kind === "entrada" && !r.transfer);
+  const losses = rows.filter((r) => r.kind === "perda" && !r.transfer).length;
+  const transfers = rows.filter((r) => r.transfer).length;
   const value = entries.reduce((a, r) => a + r.value, 0);
   const sinceCount = data?.lastCount ? rows.filter((r) => r.date > (data.lastCount as string)).length : rows.length;
   const byDate = useMemo(() => {
     const map = new Map<string, HistoryRow[]>();
-    for (const r of kind === "todos" ? rows : rows.filter((x) => x.kind === kind)) map.set(r.date, [...(map.get(r.date) ?? []), r]);
+    const kindOf = (r: HistoryRow) => (r.transfer ? "transferencia" : r.kind);
+    for (const r of kind === "todos" ? rows : rows.filter((x) => kindOf(x) === kind)) map.set(r.date, [...(map.get(r.date) ?? []), r]);
     return [...map];
   }, [rows, kind]);
+
+  function undoTransfer(r: HistoryRow) {
+    if (!r.transfer) return;
+    Dialog.alert(
+      "Desfazer esta transferência?",
+      `A transferência de ${formatDate(r.date)} ${r.kind === "entrada" ? "da" : "para a"} loja ${r.transfer.other} é desfeita inteira, com todos os produtos dela, nas duas lojas.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Desfazer",
+          style: "destructive",
+          onPress: async () => {
+            const err = await deleteTransfer(r.transfer!.id);
+            if (err) Dialog.alert("Não desfez", err);
+            else void reload();
+          },
+        },
+      ],
+    );
+  }
 
   function remove(r: HistoryRow) {
     Dialog.alert("Excluir este lançamento?", `${KIND[r.kind]} de ${r.name} em ${formatDate(r.date)}.`, [
@@ -71,6 +96,7 @@ export default function EntradasTab() {
     >
       <View style={{ gap: 8 }}>
         <Button label="Registrar entrada" onPress={() => router.push("/lancar?tipo=entrada")} />
+        {manager && stores.length > 1 && <Button label="Transferir para outra loja" variant="secondary" onPress={() => router.push("/transferir")} />}
         <Button label="Entrada pela nota fiscal" variant="secondary" onPress={() => router.push("/nota")} />
         <Button label="Registrar perda" variant="secondary" onPress={() => router.push("/lancar?tipo=perda")} />
       </View>
@@ -94,6 +120,7 @@ export default function EntradasTab() {
                 hint={value > 0 ? "Pelo custo cadastrado dos produtos" : "Cadastre o custo dos produtos para ver"}
               />
             )}
+            {transfers > 0 && <Stat label="Transferências" value={transfers} hint={`Entre as suas lojas, em ${HISTORY_DAYS} dias`} />}
             <Stat
               label="Desde a contagem"
               value={plural(sinceCount, "lançamento", "lançamentos")}
@@ -103,13 +130,14 @@ export default function EntradasTab() {
 
           <Guide guide={GUIDES.entradas} />
 
-          {entries.length > 0 && losses > 0 && (
+          {(entries.length > 0 ? 1 : 0) + (losses > 0 ? 1 : 0) + (transfers > 0 ? 1 : 0) > 1 && (
             <View style={{ flexDirection: "row", gap: 8 }}>
               {(
                 [
                   ["todos", "Tudo", rows.length],
                   ["entrada", "Entradas", entries.length],
                   ["perda", "Perdas", losses],
+                  ...(transfers > 0 ? ([["transferencia", "Transferências", transfers]] as const) : []),
                 ] as const
               ).map(([key, label, count]) => (
                 <Pressable
@@ -140,8 +168,11 @@ export default function EntradasTab() {
           </T>
           {byDate.map(([date, list], i) => {
             const items = [...list].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "pt-BR"));
-            const dayEntries = items.filter((r) => r.kind === "entrada");
-            const dayLosses = items.length - dayEntries.length;
+            const dayEntries = items.filter((r) => r.kind === "entrada" && !r.transfer);
+            const dayLosses = items.filter((r) => r.kind === "perda" && !r.transfer).length;
+            const dayTransfers = items.filter((r) => r.transfer).length;
+            // O que muda de data de uma vez: os lançamentos comuns (a transferência anda inteira, não se move).
+            const movable = items.filter((r) => !r.transfer);
             const dayValue = dayEntries.reduce((a, r) => a + r.value, 0);
             const isOpen = open[date] ?? i === 0;
             return (
@@ -161,22 +192,22 @@ export default function EntradasTab() {
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <T weight="bold" size={14}>
-                      {[dayEntries.length > 0 && plural(dayEntries.length, "entrada", "entradas"), dayLosses > 0 && plural(dayLosses, "perda", "perdas")]
+                      {[dayEntries.length > 0 && plural(dayEntries.length, "entrada", "entradas"), dayLosses > 0 && plural(dayLosses, "perda", "perdas"), dayTransfers > 0 && plural(dayTransfers, "transferência", "transferências")]
                         .filter(Boolean)
                         .join(" · ")}
                     </T>
                     {manager && dayValue > 0 && <T size={14} color={colors.muted}>{brl.format(dayValue)}</T>}
                   </View>
                 </Pressable>
-                {isOpen && (
+                {isOpen && movable.length > 0 && (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setMoving(items)}
+                    onPress={() => setMoving(movable)}
                     style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minHeight: 44, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: colors.line }}
                   >
                     <Ionicons name="calendar-outline" size={18} color={colors.ink} />
                     <T weight="semibold" size={15} style={{ textDecorationLine: "underline" }}>
-                      {items.length === 1 ? "Mudar a data" : `Mudar a data dos ${items.length}`}
+                      {movable.length === 1 ? "Mudar a data" : `Mudar a data dos ${movable.length}`}
                     </T>
                   </Pressable>
                 )}
@@ -192,24 +223,43 @@ export default function EntradasTab() {
                           {r.by ? ` · por ${r.by}` : ""}
                           {manager && r.value > 0 ? ` · ${brl.format(r.value)}` : ""}
                         </T>
+                        {r.transfer && (
+                          <T size={14} weight="semibold">{r.kind === "entrada" ? `Veio da loja ${r.transfer.other}` : `Foi para a loja ${r.transfer.other}`}</T>
+                        )}
                       </View>
-                      <Badge tone={r.kind === "entrada" ? "ok" : "danger"}>{KIND[r.kind]}</Badge>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Corrigir lançamento de ${r.name}`}
-                        onPress={() => setEditing(r)}
-                        style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-                      >
-                        <Ionicons name="pencil" size={20} color={colors.muted} />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Excluir lançamento de ${r.name}`}
-                        onPress={() => remove(r)}
-                        style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                      </Pressable>
+                      {r.transfer ? <Badge tone="info">Transferência</Badge> : <Badge tone={r.kind === "entrada" ? "ok" : "danger"}>{KIND[r.kind]}</Badge>}
+                      {r.transfer ? (
+                        // Os dois lados da transferência andam juntos: só dá para desfazer a transferência inteira (o gerente).
+                        manager && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Desfazer a transferência de ${r.name}`}
+                            onPress={() => undoTransfer(r)}
+                            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                          >
+                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                          </Pressable>
+                        )
+                      ) : (
+                        <>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Corrigir lançamento de ${r.name}`}
+                            onPress={() => setEditing(r)}
+                            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                          >
+                            <Ionicons name="pencil" size={20} color={colors.muted} />
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Excluir lançamento de ${r.name}`}
+                            onPress={() => remove(r)}
+                            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                          >
+                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                          </Pressable>
+                        </>
+                      )}
                     </View>
                   ))}
               </Card>

@@ -51,7 +51,7 @@ export type Home = {
 
 export async function loadHome(profile: Profile) {
   const storeId = profile.store.id;
-  return cached(`beststock:inicio:${profile.id}`, async (): Promise<Home> => {
+  return cached(`beststock:inicio:${profile.store.id}:${profile.id}`, async (): Promise<Home> => {
     const now = today();
     const manager = profile.access === "gerente";
     const [inv, products, ann, reads, late] = await Promise.all([
@@ -141,8 +141,8 @@ export type CountData = {
   previousOn: string | null;
   maxPossible: Record<string, number>;
   lastEntrada: Record<string, string>;
-  arrivedBefore: string[];
-  arrivedAfter: string[];
+  arrivedBefore: { name: string; from: string | null }[];
+  arrivedAfter: { name: string; from: string | null }[];
 };
 
 /** Tudo que a tela de contagem precisa, guardado no aparelho para abrir sem internet. */
@@ -164,12 +164,31 @@ export async function loadCount(profile: Profile, inventoryId: string) {
         .order("counted_on", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("movements").select("product_id, after_count").eq("store_id", storeId).eq("kind", "entrada").eq("moved_on", countedOn),
+      supabase
+        .from("movements")
+        .select("product_id, after_count, transfer_id, transfers(from_store_id)")
+        .eq("store_id", storeId)
+        .eq("kind", "entrada")
+        .eq("moved_on", countedOn),
     ]);
     const products = (check(productsRes) ?? []) as (CountProduct & { active: boolean })[];
     const items = (check(itemsRes) ?? []) as { product_id: string; quantity: number; stockout_on: string | null }[];
     const prev = check(prevRes) as { id: string; counted_on: string } | null;
-    const sameDay = (check(sameDayRes) ?? []) as { product_id: string; after_count: boolean | null }[];
+    const sameDay = (check(sameDayRes) ?? []) as unknown as {
+      product_id: string;
+      after_count: boolean | null;
+      transfers: { from_store_id: string } | { from_store_id: string }[] | null;
+    }[];
+    // Entrada que veio de transferência: o aviso diz de qual loja, para não parecer compra.
+    const fromIds = [...new Set(sameDay.flatMap((m) => (Array.isArray(m.transfers) ? m.transfers[0] : m.transfers)?.from_store_id ?? []))];
+    const fromNames = new Map<string, string>();
+    if (fromIds.length) {
+      for (const s of (check(await supabase.from("stores").select("id, name").in("id", fromIds)) ?? []) as { id: string; name: string }[]) fromNames.set(s.id, s.name);
+    }
+    const arrival = (m: (typeof sameDay)[number]) => {
+      const t = Array.isArray(m.transfers) ? m.transfers[0] : m.transfers;
+      return { name: m.product_id, from: t ? (fromNames.get(t.from_store_id) ?? "outra loja") : null };
+    };
 
     const initial: Record<string, string> = {};
     const stockouts: Record<string, string> = {};
@@ -206,8 +225,8 @@ export async function loadCount(profile: Profile, inventoryId: string) {
       previousOn: prev?.counted_on ?? null,
       maxPossible,
       lastEntrada,
-      arrivedBefore: sameDay.filter((m) => !m.after_count).map((m) => names.get(m.product_id) ?? "Produto"),
-      arrivedAfter: sameDay.filter((m) => m.after_count).map((m) => names.get(m.product_id) ?? "Produto"),
+      arrivedBefore: sameDay.filter((m) => !m.after_count).map((m) => ({ ...arrival(m), name: names.get(m.product_id) ?? "Produto" })),
+      arrivedAfter: sameDay.filter((m) => m.after_count).map((m) => ({ ...arrival(m), name: names.get(m.product_id) ?? "Produto" })),
     };
   });
 }

@@ -358,16 +358,18 @@ function CountList({ data, fromCache }: { data: CountData; fromCache: boolean })
           <T size={15}>Conte o que está na prateleira. O que chegar depois entra no estoque e não soma neste número.</T>
         ) : (
           <>
-            {data.arrivedBefore.length > 0 && (
-              <T size={15}>
-                {data.arrivedBefore.join(", ")} já {data.arrivedBefore.length === 1 ? "entrou" : "entraram"} antes da contagem. Conte a prateleira inteira, com essa mercadoria.
+            {bySource(data.arrivedBefore).map((g) => (
+              <T key={`antes-${g.from ?? ""}`} size={15}>
+                {g.names.join(", ")} já {g.names.length === 1 ? "entrou" : "entraram"} antes da contagem
+                {g.from ? `, por transferência da loja ${g.from}` : ""}. Conte a prateleira inteira, com essa mercadoria.
               </T>
-            )}
-            {data.arrivedAfter.length > 0 && (
-              <T size={15}>
-                {data.arrivedAfter.join(", ")} {data.arrivedAfter.length === 1 ? "chegou" : "chegaram"} depois da contagem. Não some essa quantidade de novo.
+            ))}
+            {bySource(data.arrivedAfter).map((g) => (
+              <T key={`depois-${g.from ?? ""}`} size={15}>
+                {g.names.join(", ")} {g.names.length === 1 ? "chegou" : "chegaram"} depois da contagem
+                {g.from ? `, por transferência da loja ${g.from}` : ""}. Não some essa quantidade de novo.
               </T>
-            )}
+            ))}
           </>
         )}
       </Notice>
@@ -680,4 +682,15 @@ function StepButton({ label, a11y, onPress }: { label: string; a11y: string; onP
       <T weight="bold" size={26}>{label}</T>
     </Pressable>
   );
+}
+
+/** Agrupa o que chegou por origem (compra ou transferência de uma loja), para o aviso dizer de onde veio cada grupo. */
+function bySource(list: ({ name: string; from: string | null } | string)[]) {
+  const groups = new Map<string, string[]>();
+  for (const raw of list) {
+    // O que ficou guardado no aparelho por uma versão anterior do app tem só o nome.
+    const a = typeof raw === "string" ? { name: raw, from: null } : raw;
+    groups.set(a.from ?? "", [...(groups.get(a.from ?? "") ?? []), a.name]);
+  }
+  return [...groups].map(([from, names]) => ({ from: from || null, names }));
 }

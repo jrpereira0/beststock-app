@@ -90,7 +90,7 @@ export async function loadStores(filter: StoreFilter = "todas", search = "", lim
   });
 }
 
-export type StoreLogin = { id: string; name: string; email: string; access: "gerente" | "funcionario" };
+export type StoreLogin = { id: string; name: string; email: string; access: "gerente" | "funcionario"; shared?: boolean };
 export type StoreDetail = {
   store: Store;
   logins: StoreLogin[];
@@ -105,7 +105,8 @@ export async function loadStore(id: string) {
   return cached(`beststock:admin:loja:${id}`, async (): Promise<StoreDetail> => {
     const [storeRes, loginRes, productsRes, lastInvRes, payRes, planRes, notesRes] = await Promise.all([
       supabase.from("stores").select("*").eq("id", id).maybeSingle(),
-      supabase.from("profiles").select("id, name, email, access").eq("store_id", id).order("created_at"),
+      // Logins que acessam a unidade (a lista de lojas de cada login), inclusive os de clientes com várias lojas.
+      supabase.from("profile_stores").select("created_at, profiles(id, name, email, access, role)").eq("store_id", id).order("created_at"),
       supabase.from("products").select("id", { count: "exact", head: true }).eq("store_id", id).eq("active", true),
       supabase.from("inventories").select("counted_on").eq("store_id", id).eq("status", "closed").order("counted_on", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("payments").select("*").eq("store_id", id).order("due_date", { ascending: false }).limit(60),
@@ -114,9 +115,16 @@ export async function loadStore(id: string) {
     ]);
     const store = check(storeRes) as Store | null;
     if (!store) throw new Error("Unidade não encontrada.");
+    type Member = StoreLogin & { role: string };
+    const members = ((check(loginRes) ?? []) as unknown as { profiles: Member | Member[] | null }[])
+      .map((r) => (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles))
+      .filter((p): p is Member => Boolean(p) && p!.role === "store");
+    const memberships = members.length ? ((await supabase.from("profile_stores").select("profile_id").in("profile_id", members.map((m) => m.id))).data ?? []) : [];
+    const storeCount = new Map<string, number>();
+    for (const m of memberships as { profile_id: string }[]) storeCount.set(m.profile_id, (storeCount.get(m.profile_id) ?? 0) + 1);
     return {
       store,
-      logins: (check(loginRes) ?? []) as StoreLogin[],
+      logins: members.map((m): StoreLogin => ({ id: m.id, name: m.name, email: m.email, access: m.access, shared: (storeCount.get(m.id) ?? 0) > 1 })),
       products: productsRes.count ?? 0,
       lastCount: (lastInvRes.data?.counted_on as string | undefined) ?? null,
       payments: (check(payRes) ?? []) as Payment[],
@@ -452,6 +460,28 @@ export async function deleteLead(id: string): Promise<string | null> {
 }
 
 // ---------------- Logins de uma unidade (pela rota do site, com a chave secreta) ----------------
+
+/** Liga um login (pelo e-mail) a mais uma loja: o cliente com várias lojas passa a trocar entre elas. */
+export async function grantStoreAccess(storeId: string, email: string): Promise<{ error: string } | { ok: string }> {
+  const clean = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return { error: "Informe o e-mail do login." };
+  try {
+    const { data, error } = await supabase.rpc("admin_grant_store_access", { p_email: clean, p_store: storeId });
+    if (error) return { error: isNetworkError(error) ? OFFLINE : error.code === "P0001" ? error.message : "Não foi possível dar o acesso." };
+    return { ok: `${(data as { name?: string } | null)?.name || clean} agora também acessa esta loja.` };
+  } catch {
+    return { error: OFFLINE };
+  }
+}
+
+/** Tira o acesso de um login a esta loja (ele continua entrando nas outras). */
+export async function revokeStoreAccess(storeId: string, profileId: string): Promise<string | null> {
+  return run(async () => {
+    const { error } = await supabase.rpc("admin_revoke_store_access", { p_profile: profileId, p_store: storeId });
+    if (!error) return null;
+    return isNetworkError(error) ? OFFLINE : error.code === "P0001" ? error.message : "Não foi possível tirar o acesso.";
+  });
+}
 
 export async function addStoreLogin(storeId: string, f: { name: string; email: string; password: string; access: string }) {
   return callSite<{ ok?: string }>("/api/app/logins", { body: { action: "add", store_id: storeId, ...f } });

@@ -23,6 +23,8 @@ export type HistoryRow = {
   /** Pelo custo cadastrado. Só aparece para o gerente. */
   value: number;
   by: string | null;
+  /** Lançamento de uma transferência entre lojas: a outra loja (de onde veio, ou para onde foi). */
+  transfer: { id: string; other: string } | null;
   /** Para corrigir: a quantidade como se digita (embalagens na entrada) e a unidade dela. */
   edit: { amount: number; unit: string };
 };
@@ -30,11 +32,11 @@ export type History = { rows: HistoryRow[]; lastCount: string | null };
 
 export async function loadHistory(profile: Profile) {
   const storeId = profile.store.id;
-  return cached(`beststock:historico:${profile.id}`, async (): Promise<History> => {
+  return cached(`beststock:historico:${profile.store.id}:${profile.id}`, async (): Promise<History> => {
     const [movRes, prodRes, countRes, people] = await Promise.all([
       supabase
         .from("movements")
-        .select("id, product_id, kind, moved_on, quantity, packages, created_by")
+        .select("id, product_id, kind, moved_on, quantity, packages, created_by, transfer_id")
         .eq("store_id", storeId)
         .gte("moved_on", addDays(today(), -HISTORY_DAYS))
         .order("moved_on", { ascending: false })
@@ -59,12 +61,23 @@ export async function loadHistory(profile: Profile) {
       quantity: number;
       packages: number | null;
       created_by: string | null;
+      transfer_id: string | null;
     }[];
     const products = new Map(
       ((check(prodRes) ?? []) as { id: string; name: string; category: string; count_unit: string; purchase_unit: string; units_per_purchase: number; cost_per_purchase: number }[]).map(
         (p) => [p.id, p],
       ),
     );
+    // Transferências entre lojas: de qual loja veio e para qual foi.
+    const transfers = new Map<string, { from: string; to: string }>();
+    const transferIds = [...new Set(movements.map((m) => m.transfer_id).filter((id): id is string => Boolean(id)))];
+    if (transferIds.length) {
+      const ts = (check(await supabase.from("transfers").select("id, from_store_id, to_store_id").in("id", transferIds)) ?? []) as { id: string; from_store_id: string; to_store_id: string }[];
+      const storeIds = [...new Set(ts.flatMap((t) => [t.from_store_id, t.to_store_id]))];
+      const ss = (check(await supabase.from("stores").select("id, name").in("id", storeIds)) ?? []) as { id: string; name: string }[];
+      const names = new Map(ss.map((s) => [s.id, s.name]));
+      for (const t of ts) transfers.set(t.id, { from: names.get(t.from_store_id) ?? "outra loja", to: names.get(t.to_store_id) ?? "outra loja" });
+    }
     const manyPeople = Object.keys(people).length > 1;
     const manager = profile.access === "gerente";
     const rows = movements.map((m): HistoryRow => {
@@ -84,6 +97,10 @@ export async function loadHistory(profile: Profile) {
         // O funcionário não vê valores: nem chegam ao aparelho dele.
         value: manager ? (quantity / Number(p?.units_per_purchase ?? 1)) * Number(p?.cost_per_purchase ?? 0) : 0,
         by: manyPeople ? (people[m.created_by ?? ""] ?? null) : null,
+        // A entrada da transferência vem de outra loja; a perda da transferência vai para outra loja.
+        transfer: m.transfer_id
+          ? { id: m.transfer_id, other: (m.kind === "entrada" ? transfers.get(m.transfer_id)?.from : transfers.get(m.transfer_id)?.to) ?? "outra loja" }
+          : null,
         edit:
           m.kind === "entrada"
             ? { amount: m.packages !== null ? Number(m.packages) : quantity / Number(p?.units_per_purchase ?? 1), unit: p?.purchase_unit ?? "" }
